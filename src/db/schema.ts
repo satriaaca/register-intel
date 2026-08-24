@@ -5,7 +5,14 @@ export const users = pgTable("users", {
   uid: text("uid").notNull().unique(),
   email: text("email").notNull(),
   name: text("name"),
+  nip: text("nip"),
+  pangkat: text("pangkat"),
+  jabatan: text("jabatan"),
+  role: text("role").default("operator"), // "admin" | "kasi_intel" | "operator" | "petugas"
+  satker: text("satker").default("KEJAKSAAN NEGERI TABANAN"),
   photoUrl: text("photo_url"),
+  ssoProvider: text("sso_provider").default("kejaksaan_sso"),
+  lastLogin: timestamp("last_login").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -58,3 +65,13 @@ export const registerEntries = pgTable("register_entries", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const storageCodes = pgTable("storage_codes", {
+  id: serial("id").primaryKey(),
+  kode: text("kode").notNull(),
+  asal: text("asal").notNull(),
+  keterangan: text("keterangan"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+

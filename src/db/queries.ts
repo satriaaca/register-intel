@@ -1,7 +1,7 @@
 import { db, createPool } from "./index.ts";
-import { officers, registerEntries, registers, settings } from "./schema.ts";
+import { officers, registerEntries, registers, settings, storageCodes } from "./schema.ts";
 import { eq, desc, asc } from "drizzle-orm";
-import { Officer, AppSettings } from "../types.ts";
+import { Officer, AppSettings, StorageCodeMapping } from "../types.ts";
 import { DEFAULT_SETTINGS, INITIAL_OFFICERS, REGISTER_DEFINITIONS } from "../lib/constants.ts";
 
 export async function ensureTablesExist(): Promise<void> {
@@ -58,6 +58,15 @@ export async function ensureTablesExist(): Promise<void> {
         tgl TEXT,
         waktu TEXT,
         data_json TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS storage_codes (
+        id SERIAL PRIMARY KEY,
+        kode TEXT NOT NULL,
+        asal TEXT NOT NULL,
+        keterangan TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
@@ -412,6 +421,53 @@ export async function deleteRegisterEntry(id: number): Promise<boolean> {
   }
 }
 
+export async function importRegisterEntriesBatch(
+  registerCode: string,
+  entriesList: Array<{
+    nomorUrut?: number;
+    tgl?: string;
+    waktu?: string;
+    data: Record<string, any>;
+  }>,
+  options?: { clearExisting?: boolean }
+) {
+  try {
+    if (options?.clearExisting) {
+      await db.delete(registerEntries).where(eq(registerEntries.registerCode, registerCode));
+    }
+
+    const insertedRows = [];
+    for (let i = 0; i < entriesList.length; i++) {
+      const item = entriesList[i];
+      const noUrut = item.nomorUrut || i + 1;
+      const jsonStr = JSON.stringify(item.data || {});
+
+      const res = await db
+        .insert(registerEntries)
+        .values({
+          registerCode,
+          nomorUrut: noUrut,
+          tgl: item.tgl || null,
+          waktu: item.waktu || null,
+          dataJson: jsonStr,
+        })
+        .returning();
+
+      if (res.length > 0) {
+        insertedRows.push(res[0]);
+      }
+    }
+
+    return {
+      success: true,
+      count: insertedRows.length,
+    };
+  } catch (error) {
+    console.error(`Failed to batch import entries for ${registerCode}:`, error);
+    throw new Error(`Failed to batch import entries: ${error}`);
+  }
+}
+
 export async function getRegistersSummary() {
   try {
     const officersList = await getOfficers();
@@ -436,5 +492,113 @@ export async function getRegistersSummary() {
       totalOfficers: 0,
       countsByRegister: {},
     };
+  }
+}
+
+export async function getStorageCodes(): Promise<StorageCodeMapping[]> {
+  try {
+    const list = await db.select().from(storageCodes).orderBy(asc(storageCodes.kode), asc(storageCodes.asal));
+    return list.map((item) => ({
+      id: item.id,
+      kode: item.kode,
+      asal: item.asal,
+      keterangan: item.keterangan || "",
+      createdAt: item.createdAt ? item.createdAt.toISOString() : null,
+    }));
+  } catch (error) {
+    console.error("Failed to get storage codes:", error);
+    return [];
+  }
+}
+
+export async function saveStorageCode(payload: {
+  id?: number;
+  kode: string;
+  asal: string;
+  keterangan?: string;
+}): Promise<StorageCodeMapping> {
+  try {
+    const { id, kode, asal, keterangan } = payload;
+    if (id) {
+      const res = await db
+        .update(storageCodes)
+        .set({
+          kode,
+          asal,
+          keterangan: keterangan || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(storageCodes.id, id))
+        .returning();
+
+      return {
+        id: res[0].id,
+        kode: res[0].kode,
+        asal: res[0].asal,
+        keterangan: res[0].keterangan,
+      };
+    } else {
+      const res = await db
+        .insert(storageCodes)
+        .values({
+          kode,
+          asal,
+          keterangan: keterangan || null,
+        })
+        .returning();
+
+      return {
+        id: res[0].id,
+        kode: res[0].kode,
+        asal: res[0].asal,
+        keterangan: res[0].keterangan,
+      };
+    }
+  } catch (error) {
+    console.error("Failed to save storage code:", error);
+    throw new Error(`Failed to save storage code: ${error}`);
+  }
+}
+
+export async function deleteStorageCode(id: number): Promise<boolean> {
+  try {
+    await db.delete(storageCodes).where(eq(storageCodes.id, id));
+    return true;
+  } catch (error) {
+    console.error("Failed to delete storage code:", error);
+    throw new Error(`Failed to delete storage code: ${error}`);
+  }
+}
+
+export const INITIAL_STORAGE_CODE_MAPPINGS: Array<{ kode: string; asal: string; keterangan?: string }> = [
+  { kode: "ARSIP-01", asal: "KEJAKSAAN TINGGI BALI | BIDANG PENGAWASAN", keterangan: "Pengawasan Kejati Bali" },
+  { kode: "ARSIP-02", asal: "KEJAKSAAN TINGGI BALI | BIDANG INTELIJEN", keterangan: "Intelijen Kejati Bali" },
+  { kode: "ARSIP-03", asal: "KEJAKSAAN TINGGI BALI | KEJAKSAAN TINGGI", keterangan: "Surat Umum Kejati Bali" },
+  { kode: "ARSIP-04", asal: "KEJAKSAAN AGUNG | KELOMPOK JABATAN FUNGSIONAL", keterangan: "Kejaksaan Agung RI" },
+  { kode: "ARSIP-05", asal: "KASI INTEL KN TABANAN", keterangan: "Internal Seksi Intelijen" },
+  { kode: "ARSIP-06", asal: "SEKDA KAB TABANAN", keterangan: "Sekretariat Daerah Tabanan" },
+  { kode: "ARSIP-07", asal: "SEKDA TABANAN", keterangan: "Sekretariat Daerah Tabanan" },
+  { kode: "ARSIP-08", asal: "DINAS PUPR TBN", keterangan: "Dinas PUPR Kabupaten Tabanan" },
+  { kode: "ARSIP-09", asal: "Dinas PUPR", keterangan: "Dinas PUPR Kabupaten Tabanan" },
+  { kode: "ARSIP-10", asal: "DISPERINDAG TBN", keterangan: "Dinas Perindag Kabupaten Tabanan" },
+  { kode: "ARSIP-11", asal: "PLN ULP TABANAN", keterangan: "Instansi BUMN / PLN" },
+];
+
+export async function seedStorageCodesIfEmpty(): Promise<void> {
+  try {
+    const existing = await getStorageCodes();
+    if (existing.length === 0) {
+      console.log("Seeding initial storage codes mapping...");
+      for (const item of INITIAL_STORAGE_CODE_MAPPINGS) {
+        await db.insert(storageCodes).values({
+          kode: item.kode,
+          asal: item.asal,
+          keterangan: item.keterangan || null,
+        });
+      }
+      console.log("Initial storage codes seeded successfully.");
+    }
+  } catch (err) {
+    console.warn("Could not seed storage codes:", err);
   }
 }

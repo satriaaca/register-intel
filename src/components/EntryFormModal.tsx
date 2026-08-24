@@ -28,6 +28,16 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
   const [nomorUrut, setNomorUrut] = useState<number>(nextNomorUrut);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [officerSearch, setOfficerSearch] = useState<string>("");
+  const [storageCodesList, setStorageCodesList] = useState<Array<{ kode: string; asal: string }>>([]);
+
+  useEffect(() => {
+    if (isOpen && register.code === "R.IN.6") {
+      fetch("/api/storage-codes")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => setStorageCodesList(data))
+        .catch(() => {});
+    }
+  }, [isOpen, register.code]);
 
   useEffect(() => {
     if (initialEntry) {
@@ -352,14 +362,26 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
 
     // Default text
     return (
-      <input
-        type="text"
-        id={`input-field-${col.key}`}
-        value={val}
-        placeholder={col.placeholder || `Masukkan ${col.label.toLowerCase()}...`}
-        onChange={(e) => handleChange(col.key, e.target.value)}
-        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:bg-white"
-      />
+      <>
+        <input
+          type="text"
+          id={`input-field-${col.key}`}
+          list={col.key === "kode_penyimpanan" ? "storage-codes-datalist" : undefined}
+          value={val}
+          placeholder={col.placeholder || `Masukkan ${col.label.toLowerCase()}...`}
+          onChange={(e) => handleChange(col.key, e.target.value)}
+          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:bg-white"
+        />
+        {col.key === "kode_penyimpanan" && (
+          <datalist id="storage-codes-datalist">
+            {storageCodesList.map((sc, idx) => (
+              <option key={idx} value={sc.kode}>
+                {sc.asal} ({sc.kode})
+              </option>
+            ))}
+          </datalist>
+        )}
+      </>
     );
   };
 

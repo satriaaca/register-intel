@@ -15,18 +15,29 @@ import {
   getRegisterEntries,
   saveRegisterEntry,
   deleteRegisterEntry,
+  importRegisterEntriesBatch,
   getRegistersSummary,
+  getStorageCodes,
+  saveStorageCode,
+  deleteStorageCode,
+  seedStorageCodesIfEmpty,
 } from "./src/db/queries.ts";
 import { REGISTER_DEFINITIONS } from "./src/lib/constants.ts";
+import { ensureRIn3DataSeeded } from "./src/lib/seed-rin3.ts";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   // Ensure tables exist on database connection (e.g. Neon or Cloud SQL)
-  ensureTablesExist().catch((err) => {
-    console.error("Failed table check on server startup:", err);
-  });
+  ensureTablesExist()
+    .then(async () => {
+      await ensureRIn3DataSeeded();
+      await seedStorageCodesIfEmpty();
+    })
+    .catch((err) => {
+      console.error("Failed table check on server startup:", err);
+    });
 
   app.use(express.json());
 
@@ -157,6 +168,74 @@ async function startServer() {
     } catch (error: any) {
       console.error(`Error deleting entry ${req.params.id}:`, error);
       res.status(500).json({ error: error.message || "Failed to delete entry" });
+    }
+  });
+
+  // Storage Codes API
+  app.get("/api/storage-codes", async (req, res) => {
+    try {
+      const list = await getStorageCodes();
+      res.json(list);
+    } catch (error: any) {
+      console.error("Error getting storage codes:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch storage codes" });
+    }
+  });
+
+  app.post("/api/storage-codes", async (req, res) => {
+    try {
+      const { kode, asal, keterangan } = req.body;
+      if (!kode || !asal) {
+        return res.status(400).json({ error: "Kode dan Asal Instansi wajib diisi." });
+      }
+      const created = await saveStorageCode({ kode, asal, keterangan });
+      res.json(created);
+    } catch (error: any) {
+      console.error("Error saving storage code:", error);
+      res.status(500).json({ error: error.message || "Failed to save storage code" });
+    }
+  });
+
+  app.put("/api/storage-codes/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { kode, asal, keterangan } = req.body;
+      if (!kode || !asal) {
+        return res.status(400).json({ error: "Kode dan Asal Instansi wajib diisi." });
+      }
+      const updated = await saveStorageCode({ id, kode, asal, keterangan });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating storage code:", error);
+      res.status(500).json({ error: error.message || "Failed to update storage code" });
+    }
+  });
+
+  app.delete("/api/storage-codes/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await deleteStorageCode(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting storage code:", error);
+      res.status(500).json({ error: error.message || "Failed to delete storage code" });
+    }
+  });
+
+  // Batch import entries for a register
+  app.post("/api/registers/:code/import-batch", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const { entries, clearExisting } = req.body;
+      if (!Array.isArray(entries) || entries.length === 0) {
+        return res.status(400).json({ error: "Data entries harus berupa array dan tidak boleh kosong." });
+      }
+
+      const result = await importRegisterEntriesBatch(code, entries, { clearExisting: !!clearExisting });
+      res.json(result);
+    } catch (error: any) {
+      console.error(`Error importing batch for ${req.params.code}:`, error);
+      res.status(500).json({ error: error.message || "Failed to import entries batch" });
     }
   });
 

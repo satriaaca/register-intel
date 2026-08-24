@@ -27,8 +27,12 @@ import {
   Calendar,
   Save,
   Filter,
+  Upload,
+  FolderArchive,
 } from "lucide-react";
 import jsPDF from "jspdf";
+import { ImportCsvModal } from "./ImportCsvModal.tsx";
+import { StorageCodesModal } from "./StorageCodesModal.tsx";
 
 interface RegisterDocumentViewProps {
   register: RegisterDefinition;
@@ -54,6 +58,8 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RegisterEntryRow | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isImportCsvOpen, setIsImportCsvOpen] = useState(false);
+  const [isStorageCodesOpen, setIsStorageCodesOpen] = useState(false);
   const [generatedPdf, setGeneratedPdf] = useState<jsPDF | null>(null);
 
   // In-app Delete Confirmation State
@@ -398,6 +404,28 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Tambah Baris</span>
+          </button>
+
+          {register.code === "R.IN.6" && (
+            <button
+              id="btn-manage-storage-codes"
+              onClick={() => setIsStorageCodesOpen(true)}
+              title="Kelola tabel relasi Nomor dan Asal Kode Penyimpanan Arsip"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded shadow-2xs transition cursor-pointer"
+            >
+              <FolderArchive className="w-3.5 h-3.5 text-amber-700" />
+              <span>Kode Penyimpanan</span>
+            </button>
+          )}
+
+          <button
+            id="btn-import-csv"
+            onClick={() => setIsImportCsvOpen(true)}
+            title="Impor data massal dari file CSV atau teks CSV"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded shadow-2xs transition cursor-pointer"
+          >
+            <Upload className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Impor CSV</span>
           </button>
 
           <button
@@ -781,6 +809,24 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         pdfDoc={generatedPdf}
         filename={`${register.code}_${typeof selectedMonth === "number" ? MONTH_NAMES_ID[selectedMonth - 1] : "Semua"}_${selectedYear}.pdf`}
       />
+
+      {/* CSV Importer Modal */}
+      <ImportCsvModal
+        isOpen={isImportCsvOpen}
+        onClose={() => setIsImportCsvOpen(false)}
+        register={register}
+        onSuccess={() => {
+          onReload();
+        }}
+      />
+
+      {/* Storage Codes Modal for R.IN.6 */}
+      {isStorageCodesOpen && (
+        <StorageCodesModal
+          isOpen={isStorageCodesOpen}
+          onClose={() => setIsStorageCodesOpen(false)}
+        />
+      )}
     </div>
   );
 };

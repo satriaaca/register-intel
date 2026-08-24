@@ -79,3 +79,43 @@ export interface RegisterEntryRow {
   createdAt?: string | null;
   updatedAt?: string | null;
 }
+
+export interface StorageCodeMapping {
+  id?: number;
+  kode: string; // e.g. "ARSIP-001" or "01"
+  asal: string; // e.g. "KEJAKSAAN TINGGI BALI | BIDANG PENGAWASAN"
+  keterangan?: string | null;
+  createdAt?: string | null;
+}
+
+export type UserRole = "admin" | "kasi_intel" | "operator" | "petugas";
+
+export interface User {
+  id?: number;
+  uid: string;
+  name: string;
+  email: string;
+  nip?: string;
+  pangkat?: string;
+  jabatan?: string;
+  role: UserRole;
+  satker?: string;
+  photoUrl?: string;
+  ssoProvider: "kejaksaan_sso" | "google" | "simkari" | "passkey";
+  token?: string;
+  lastLogin?: string;
+}
+
+export interface SsoPresetProfile {
+  id: string;
+  name: string;
+  email: string;
+  nip: string;
+  pangkat: string;
+  jabatan: string;
+  role: UserRole;
+  satker: string;
+  description: string;
+  avatarColor: string;
+}
+
