@@ -5,7 +5,7 @@ on:
     # Sabtu 17:00 UTC = Minggu 01:00 WITA
     - cron: "0 17 * * 6"
 
-  # Bisa dijalankan manual dari GitHub Actions.
+  # Jalankan manual dari GitHub Actions bila diperlukan.
   workflow_dispatch:
 
 permissions:
@@ -34,20 +34,15 @@ jobs:
           set -euo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y \
-            ca-certificates \
-            curl \
-            gnupg \
-            lsb-release
+          sudo apt-get install -y ca-certificates curl lsb-release
 
           sudo install -d /usr/share/postgresql-common/pgdg
 
-          curl -fsSL \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-            | sudo gpg --dearmor \
-            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          sudo curl --fail --location \
+            --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
 
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
 
           sudo apt-get update
@@ -165,9 +160,9 @@ jobs:
             echo "## Backup Neon ke Google Drive berhasil"
             echo
             echo "- File: \`${{ steps.backup.outputs.backup_name }}\`"
-            echo "- Format: PostgreSQL custom dump (`pg_dump` versi 18)"
+            echo "- Format: PostgreSQL custom dump (pg_dump 18)"
             echo "- Kompresi: level 9"
-            echo "- File SHA-256 checksum: dibuat dan diunggah"
+            echo "- SHA-256 checksum: dibuat dan diunggah"
             echo "- Waktu: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           } >> "$GITHUB_STEP_SUMMARY"
 
