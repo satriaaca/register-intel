@@ -1,11 +1,10 @@
 {
-  "projectId": "polar-aileron-fk76w",
-  "appId": "1:430552543041:web:986100f2abd1a255387bc0",
-  "apiKey": "AIzaSyBXAwOCGcLfcRCEdSmJoafK4T2LmktEqnk",
-  "authDomain": "polar-aileron-fk76w.firebaseapp.com",
-  "storageBucket": "polar-aileron-fk76w.firebasestorage.app",
-  "messagingSenderId": "430552543041",
-  "measurementId": "",
-  "oAuthClientId": "430552543041-ochjenfjhk6fe91k4730rtmoflmme4jm.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "projectId": "tes-project-2b775",
+  "appId": "1:169603420488:web:d08d7a22f50658a721637d",
+  "apiKey": "AIzaSyBtJmit9bb4YENXxh7IZ-wFir3gE6q1SqU",
+  "authDomain": "tes-project-2b775.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "tes-project-2b775.firebasestorage.app",
+  "messagingSenderId": "169603420488",
+  "measurementId": "G-LD4BYSKN5F"
 }
