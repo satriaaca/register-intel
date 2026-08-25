@@ -17,7 +17,7 @@ import {
     saveStorageCode,
     deleteStorageCode,
     seedStorageCodesIfEmpty,
-} from "../src/db/queries.ts";
+} from "../src/db/queries";
 
 import { REGISTER_DEFINITIONS } from "../src/lib/constants";
 import { ensureRIn3DataSeeded } from "../src/lib/seed-rin3";
