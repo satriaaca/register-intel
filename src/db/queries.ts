@@ -1,8 +1,8 @@
-import { db, createPool } from "./index.ts";
-import { officers, registerEntries, registers, settings, storageCodes } from "./schema.ts";
+import { db, createPool } from "./index.js";
+import { officers, registerEntries, registers, settings, storageCodes } from "./schema.js";
 import { eq, desc, asc } from "drizzle-orm";
-import { Officer, AppSettings, StorageCodeMapping } from "../types.ts";
-import { DEFAULT_SETTINGS, INITIAL_OFFICERS, REGISTER_DEFINITIONS } from "../lib/constants.ts";
+import { Officer, AppSettings, StorageCodeMapping } from "../types.js";
+import { DEFAULT_SETTINGS, INITIAL_OFFICERS, REGISTER_DEFINITIONS } from "../lib/constants.js";
 
 export async function ensureTablesExist(): Promise<void> {
   try {

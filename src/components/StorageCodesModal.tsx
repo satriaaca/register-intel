@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StorageCodeMapping } from "../types.ts";
+import { StorageCodeMapping } from "../types.js";
 import {
   FolderArchive,
   Plus,

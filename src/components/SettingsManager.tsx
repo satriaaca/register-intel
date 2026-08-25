@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { AppSettings } from "../types.ts";
+import { AppSettings } from "../types.js";
 import { Settings, Save, Check, Building, PenTool, Calendar, Plus, Trash2, AlignCenter, AlignJustify } from "lucide-react";
-import { MONTH_NAMES_ID, getDefaultClosingDate, formatDateIndonesian } from "../lib/date-utils.ts";
+import { MONTH_NAMES_ID, getDefaultClosingDate, formatDateIndonesian } from "../lib/date-utils.js";
 
 interface SettingsManagerProps {
   settings: AppSettings;

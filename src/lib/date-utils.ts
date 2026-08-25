@@ -1,4 +1,4 @@
-import { AppSettings, RegisterEntryRow } from "../types.ts";
+import { AppSettings, RegisterEntryRow } from "../types.js";
 
 export const MONTH_NAMES_ID = [
   "Januari",

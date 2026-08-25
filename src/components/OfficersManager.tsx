@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Officer } from "../types.ts";
+import { Officer } from "../types.js";
 import { Users, UserPlus, Trash2, Edit3, Search, Check, X, Shield, AlertCircle } from "lucide-react";
 
 interface OfficersManagerProps {

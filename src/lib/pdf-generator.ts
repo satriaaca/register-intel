@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer } from "../types.ts";
-import { MONTH_NAMES_ID, formatDateIndonesian, getClosingDateForPeriod } from "./date-utils.ts";
+import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer } from "../types.js";
+import { MONTH_NAMES_ID, formatDateIndonesian, getClosingDateForPeriod } from "./date-utils.js";
 
 export interface GeneratePdfOptions {
   register: RegisterDefinition;

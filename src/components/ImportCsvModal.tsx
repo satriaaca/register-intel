@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { RegisterDefinition, StorageCodeMapping } from "../types.ts";
+import { RegisterDefinition, StorageCodeMapping } from "../types.js";
 import {
   parseCsv,
   transformCsvToRIn1,
   transformCsvToRIn3,
   transformCsvToRIn6,
-} from "../lib/csv-importer.ts";
+} from "../lib/csv-importer.js";
 import {
   Upload,
   FileText,

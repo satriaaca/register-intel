@@ -1,4 +1,4 @@
-import { RegisterDefinition } from "../types.ts";
+import { RegisterDefinition } from "../types.js";
 
 export const DEFAULT_SETTINGS = {
   kejaksaanName: "KEJAKSAAN NEGERI TABANAN",

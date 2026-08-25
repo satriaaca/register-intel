@@ -1,4 +1,4 @@
-import { StorageCodeMapping } from "../types.ts";
+import { StorageCodeMapping } from "../types.js";
 
 export interface ParsedCsvRow {
   [key: string]: string;

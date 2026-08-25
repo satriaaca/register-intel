@@ -20,12 +20,12 @@ import type {
   Officer,
   RegisterDefinition,
   RegisterEntryRow,
-} from "./types.ts";
+} from "./types.js";
 
 import {
   DEFAULT_SETTINGS,
   REGISTER_DEFINITIONS,
-} from "./lib/constants.ts";
+} from "./lib/constants.js";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);

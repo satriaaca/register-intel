@@ -21,9 +21,9 @@ import {
   Officer,
   RegisterDefinition,
   RegisterEntryRow,
-} from "../types.ts";
+} from "../types.js";
 
-import { generateRegisterPdf } from "../lib/pdf-generator.ts";
+import { generateRegisterPdf } from "../lib/pdf-generator.js";
 
 import {
   MONTH_NAMES_ID,
@@ -31,7 +31,7 @@ import {
   formatDateIndonesian,
   filterEntriesByPeriod,
   getClosingDateForPeriod,
-} from "../lib/date-utils.ts";
+} from "../lib/date-utils.js";
 
 import { EntryFormModal } from "./EntryFormModal.tsx";
 import { ImportCsvModal } from "./ImportCsvModal.tsx";

@@ -1,6 +1,6 @@
-import { parseCsv, transformCsvToRIn3 } from "./csv-importer.ts";
+import { parseCsv, transformCsvToRIn3 } from "./csv-importer.js";
 import { SAMPLE_RIN3_CSV } from "../components/ImportCsvModal.tsx";
-import { importRegisterEntriesBatch, getRegisterEntries } from "../db/queries.ts";
+import { importRegisterEntriesBatch, getRegisterEntries } from "../db/queries.js";
 
 export async function ensureRIn3DataSeeded() {
   try {

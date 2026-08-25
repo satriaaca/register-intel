@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2, LogIn } from "lucide-react";
-import { signInWithGoogleSSO } from "../lib/firebase.ts";
+import { signInWithGoogleSSO } from "../lib/firebase.js";
 
 export default function LoginGate() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);

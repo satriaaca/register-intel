@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RegisterDefinition, RegisterEntryRow, Officer, ColumnDefinition } from "../types.ts";
+import { RegisterDefinition, RegisterEntryRow, Officer, ColumnDefinition } from "../types.js";
 import { X, Check, Calendar, Clock, Users, Plus, Trash2 } from "lucide-react";
 
 interface EntryFormModalProps {

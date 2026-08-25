@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { RegisterDefinition } from "../types.ts";
+import { RegisterDefinition } from "../types.js";
 import { Search, Layers } from "lucide-react";
 
 interface RegisterSelectorProps {
