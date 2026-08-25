@@ -5,7 +5,7 @@ on:
     # Sabtu 17:00 UTC = Minggu 01:00 WITA
     - cron: "0 17 * * 6"
 
-  # Tombol menjalankan backup manual dari tab GitHub Actions.
+  # Bisa dijalankan manual dari GitHub Actions.
   workflow_dispatch:
 
 permissions:
@@ -34,9 +34,21 @@ jobs:
           set -euo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y postgresql-common ca-certificates curl
+          sudo apt-get install -y \
+            ca-certificates \
+            curl \
+            gnupg \
+            lsb-release
 
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo install -d /usr/share/postgresql-common/pgdg
+
+          curl -fsSL \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
 
           sudo apt-get update
           sudo apt-get install -y postgresql-client-18
@@ -47,6 +59,7 @@ jobs:
       - name: Validate configuration
         run: |
           set -euo pipefail
+
           test -n "$DATABASE_URL"
           test -n "$GOOGLE_CLIENT_ID"
           test -n "$GOOGLE_CLIENT_SECRET"
@@ -56,7 +69,8 @@ jobs:
       - name: Test Neon database connection
         run: |
           set -euo pipefail
-          psql "$DATABASE_URL" \
+
+          /usr/lib/postgresql/18/bin/psql "$DATABASE_URL" \
             --no-psqlrc \
             --set ON_ERROR_STOP=1 \
             --command "SELECT current_database(), now();"
@@ -73,7 +87,7 @@ jobs:
 
           mkdir -p "$BACKUP_DIR"
 
-          pg_dump \
+          /usr/lib/postgresql/18/bin/pg_dump \
             --dbname="$DATABASE_URL" \
             --format=custom \
             --compress=9 \
@@ -91,6 +105,7 @@ jobs:
 
       - name: Install Google Drive library
         run: |
+          set -euo pipefail
           npm install --no-save googleapis@latest
 
       - name: Upload backup to Google Drive
@@ -144,17 +159,19 @@ jobs:
           node "$RUNNER_TEMP/upload-to-google-drive.mjs"
 
       - name: Backup summary
+        if: success()
         run: |
           {
             echo "## Backup Neon ke Google Drive berhasil"
             echo
             echo "- File: \`${{ steps.backup.outputs.backup_name }}\`"
-            echo "- Format: PostgreSQL custom dump"
-            echo "- SHA-256 checksum dibuat"
+            echo "- Format: PostgreSQL custom dump (`pg_dump` versi 18)"
+            echo "- Kompresi: level 9"
+            echo "- File SHA-256 checksum: dibuat dan diunggah"
             echo "- Waktu: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Clean temporary backup files
+      - name: Clean temporary files
         if: always()
         run: |
           rm -rf "$RUNNER_TEMP/backups"
