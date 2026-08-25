@@ -22,35 +22,19 @@ import {
 } from "lucide-react";
 import { StorageCodesModal } from "./StorageCodesModal.js";
 
+
+import {
+  SAMPLE_RIN1_CSV,
+  SAMPLE_RIN3_CSV,
+  SAMPLE_RIN6_CSV,
+} from "../lib/sample-data.js";
+
 interface ImportCsvModalProps {
   isOpen: boolean;
   onClose: () => void;
   register: RegisterDefinition;
   onSuccess: () => void;
 }
-
-export const SAMPLE_RIN1_CSV = `"No","Satker","Jenis Surat","Tanggal","Nomor","Nomor Agenda","Asal","Hal","Status"
-"1","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","20-08-2026","B-5142/N.1.7/H.III/08/2026","1615","KEJAKSAAN TINGGI BALI | BIDANG PENGAWASAN","Pemberitahuan Pelaksanaan Inspeksi Umum pada Wilayah Kejaksaan Tinggi Bali PKPT Tahun 2026","Disposisi"
-"2","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","20-08-2026","B-5143/N.1.7/H.III/08/2026","1616","KEJAKSAAN TINGGI BALI | BIDANG INTELIJEN","Permintaan Data Laporan Kegiatan Intelijen Triwulan III Tahun 2026","Disposisi"
-"3","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","21-08-2026","B-1290/N.1.17/Dip.2/08/2026","1617","KASI INTEL KN TABANAN","Laporan Informasi Khusus Terkait Isu Pilkada Serentak 2026","Disposisi"
-"4","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","22-08-2026","005/142/SEKDA","1618","SEKDA KAB TABANAN","Undangan Rapat Koordinasi Forkopimda Pembahasan Pengamanan Wilayah","Disposisi"
-"5","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","22-08-2026","600/521/PUPR","1619","DINAS PUPR TBN","Permohonan Pendampingan Hukum Pengamanan Proyek Strategis Daerah (PPS)","Disposisi"
-"6","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","23-08-2026","024/PLN-ULP/08/2026","1620","PLN ULP TABANAN","Koordinasi Keandalan Pasokan Listrik Selama Rangkaian Kegiatan Kenegaraan","Disposisi"`;
-
-export const SAMPLE_RIN6_CSV = `"No","Satker","Jenis Surat","Tanggal","Nomor","Nomor Agenda","Asal","Hal","Status"
-"1","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","20-08-2026","B-5142/N.1.7/H.III/08/2026","1615","KEJAKSAAN TINGGI BALI | BIDANG PENGAWASAN","Pemberitahuan Pelaksanaan Inspeksi Umum pada Wilayah Kejaksaan Tinggi Bali PKPT Tahun 2026","Disposisi"
-"2","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","20-08-2026","B-5143/N.1.7/H.III/08/2026","1616","KEJAKSAAN TINGGI BALI | BIDANG INTELIJEN","Permintaan Data Laporan Kegiatan Intelijen Triwulan III Tahun 2026","Disposisi"
-"3","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","21-08-2026","B-1290/N.1.17/Dip.2/08/2026","1617","KASI INTEL KN TABANAN","Laporan Informasi Khusus Terkait Isu Pilkada Serentak 2026","Disposisi"
-"4","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","22-08-2026","005/142/SEKDA","1618","SEKDA KAB TABANAN","Undangan Rapat Koordinasi Forkopimda Pembahasan Pengamanan Wilayah","Disposisi"
-"5","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","22-08-2026","600/521/PUPR","1619","DINAS PUPR TBN","Permohonan Pendampingan Hukum Pengamanan Proyek Strategis Daerah (PPS)","Disposisi"
-"6","KEJAKSAAN NEGERI TABANAN","BIASA INTERNAL / EKSTERNAL","23-08-2026","024/PLN-ULP/08/2026","1620","PLN ULP TABANAN","Koordinasi Keandalan Pasokan Listrik Selama Rangkaian Kegiatan Kenegaraan","Disposisi"`;
-
-export const SAMPLE_RIN3_CSV = `"No","Jenis Surat","Sifat Surat","No Register Surat","Tanggal","Nomor","Asal","Tujuan","Hal","Status"
-"1","BIASA INTERNAL / EKSTERNAL","R","1280","27-07-2026","R-1280/N.1.17.2/Dsb.4/07/2026","Kasi Intel Kejari Tabanan","Kepala Kejaksaan Negeri Tabanan","Laporan informasi harian - Pelaksanaan Kegiatan Patroli Bersepeda oleh Personel Polsek Kediri","Diproses"
-"2","BIASA INTERNAL / EKSTERNAL","R","1279","27-07-2026","R-1279/N.1.17.2/Dsb.4/07/2026","Kasi Intel Kejari Tabanan","Kepala Kejaksaan Negeri Tabanan","Laporan informasi harian - Pelaksanaan Pengamanan dan Pengaturan Arus Lalu Lintas Kegiatan Upacara Pitra Yadnya (Ngaben) oleh Bhabinkamtibmas Desa Candikuning","Diproses"
-"3","BIASA INTERNAL / EKSTERNAL","R","1278","27-07-2026","R-1278/N.1.17.2/Dsb.4/07/2026","Kasi Intel Kejari Tabanan","Kepala Kejaksaan Negeri Tabanan","Laporan informasi harian - Pelaksanaan Kegiatan Rutin Yang Ditingkatkan (KRYD) Berupa Patroli Sambang oleh Personel Polsek Baturiti","Diproses"
-"4","BIASA INTERNAL / EKSTERNAL","R","1277","27-07-2026","R-1277/N.1.17.2/Dsb.4/07/2026","Kasi Intel Kejari Tabanan","Kepala Kejaksaan Negeri Tabanan","Laporan informasi harian - Pelaksanaan Pengamanan dan Pengaturan Arus Lalu Lintas Kegiatan Upacara Ngaben oleh Babinsa Desa Batuaji","Diproses"
-"5","BIASA INTERNAL / EKSTERNAL","R","1276","27-07-2026","R-1276/N.1.17.2/Dsb.4/07/2026","Kasi Intel Kejari Tabanan","Kepala Kejaksaan Negeri Tabanan","Laporan informasi harian - Pelaksanaan Kegiatan Melayat (Sambang Duka) oleh Bhabinkamtibmas Desa Bongan","Diproses"`;
 
 export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
   isOpen,

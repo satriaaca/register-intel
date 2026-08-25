@@ -1,5 +1,5 @@
 import { parseCsv, transformCsvToRIn3 } from "./csv-importer.js";
-import { SAMPLE_RIN3_CSV } from "../components/ImportCsvModal.js";
+import { SAMPLE_RIN3_CSV } from "./sample-data.js";
 import { importRegisterEntriesBatch, getRegisterEntries } from "../db/queries.js";
 
 export async function ensureRIn3DataSeeded() {
