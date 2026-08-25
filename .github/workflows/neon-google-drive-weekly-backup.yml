@@ -29,11 +29,20 @@ jobs:
       GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
 
     steps:
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 18 client
         run: |
           set -euo pipefail
+
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-common ca-certificates curl
+
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+
+          /usr/lib/postgresql/18/bin/pg_dump --version
+          /usr/lib/postgresql/18/bin/psql --version
 
       - name: Validate configuration
         run: |
