@@ -20,7 +20,7 @@ import {
   Edit2,
   Trash2,
 } from "lucide-react";
-import { StorageCodesModal } from "./StorageCodesModal.tsx";
+import { StorageCodesModal } from "./StorageCodesModal.js";
 
 interface ImportCsvModalProps {
   isOpen: boolean;
