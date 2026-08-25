@@ -17,10 +17,10 @@ import {
     saveStorageCode,
     deleteStorageCode,
     seedStorageCodesIfEmpty,
-} from "../src/db/queries";
+} from "../src/db/queries.js";
 
-import { REGISTER_DEFINITIONS } from "../src/lib/constants";
-import { ensureRIn3DataSeeded } from "../src/lib/seed-rin3";
+import { REGISTER_DEFINITIONS } from "../src/lib/constants.js";
+import { ensureRIn3DataSeeded } from "../src/lib/seed-rin3.js";
 
 function getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
