@@ -21,6 +21,7 @@ import {
 
 import { REGISTER_DEFINITIONS } from "../src/lib/constants.js";
 import { ensureRIn3DataSeeded } from "../src/lib/seed-rin3.js";
+import { requireAuth } from "../src/lib/serverAuth.js";
 
 function getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
@@ -72,6 +73,8 @@ app.get("/api/health", (_req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
+
+app.use("/api", requireAuth);
 
 app.get("/api/settings", async (_req, res) => {
     try {

@@ -26,6 +26,7 @@ import {
 
 import { REGISTER_DEFINITIONS } from "./src/lib/constants.ts";
 import { ensureRIn3DataSeeded } from "./src/lib/seed-rin3.ts";
+import { requireAuth } from "./src/lib/serverAuth.ts";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -63,6 +64,9 @@ async function startServer() {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // Wajib autentikasi & izin whitelist untuk seluruh endpoint /api di bawah
+  app.use("/api", requireAuth);
 
   // Settings
   app.get("/api/settings", async (_req, res) => {

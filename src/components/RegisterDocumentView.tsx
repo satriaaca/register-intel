@@ -24,6 +24,7 @@ import {
 } from "../types.js";
 
 import { generateRegisterPdf } from "../lib/pdf-generator.js";
+import { authFetch } from "../lib/api.js";
 
 import {
   MONTH_NAMES_ID,
@@ -123,7 +124,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
 
     const loadStorageCodes = async () => {
       try {
-        const response = await fetch("/api/storage-codes");
+        const response = await authFetch("/api/storage-codes");
 
         if (!response.ok) {
           throw new Error("Gagal memuat kode penyimpanan.");

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { RegisterDefinition, StorageCodeMapping } from "../types.js";
+import { authFetch } from "../lib/api.js";
 import {
   parseCsv,
   transformCsvToRIn1,
@@ -61,7 +62,7 @@ export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
   // Fetch Storage Code Mappings
   const fetchStorageCodes = async () => {
     try {
-      const res = await fetch("/api/storage-codes");
+      const res = await authFetch("/api/storage-codes");
       if (res.ok) {
         const data = await res.json();
         setStorageCodes(data);
@@ -195,7 +196,7 @@ export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
       setIsLoading(true);
       setErrorMessage("");
 
-      const response = await fetch(`/api/registers/${register.code}/import-batch`, {
+      const response = await authFetch(`/api/registers/${register.code}/import-batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

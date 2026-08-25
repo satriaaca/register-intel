@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { StorageCodeMapping } from "../types.js";
+import { authFetch } from "../lib/api.js";
 import {
   FolderArchive,
   Plus,
@@ -42,7 +43,7 @@ export const StorageCodesModal: React.FC<StorageCodesModalProps> = ({
   const fetchCodes = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/storage-codes");
+      const res = await authFetch("/api/storage-codes");
       if (res.ok) {
         const data = await res.json();
         setMappings(data);
@@ -92,7 +93,7 @@ export const StorageCodesModal: React.FC<StorageCodesModalProps> = ({
       const url = editingId ? `/api/storage-codes/${editingId}` : "/api/storage-codes";
       const method = editingId ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -120,7 +121,7 @@ export const StorageCodesModal: React.FC<StorageCodesModalProps> = ({
 
   const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`/api/storage-codes/${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/storage-codes/${id}`, { method: "DELETE" });
       if (res.ok) {
         setMappings((prev) => prev.filter((m) => m.id !== id));
       }

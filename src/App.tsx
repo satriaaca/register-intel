@@ -13,6 +13,7 @@ import {
   logOutFromFirebase,
   subscribeToAuthState,
 } from "./lib/firebase";
+import { authFetch } from "./lib/api.js";
 
 import type {
   AppSettings,
@@ -79,9 +80,9 @@ export default function App() {
 
       const [regResponse, officerResponse, settingsResponse] =
         await Promise.all([
-          fetch("/api/registers"),
-          fetch("/api/officers"),
-          fetch("/api/settings"),
+          authFetch("/api/registers"),
+          authFetch("/api/officers"),
+          authFetch("/api/settings"),
         ]);
 
       if (!regResponse.ok || !officerResponse.ok || !settingsResponse.ok) {
@@ -119,7 +120,7 @@ export default function App() {
 
   const fetchEntries = async (code: string) => {
     try {
-      const response = await fetch(`/api/registers/${code}/entries`);
+      const response = await authFetch(`/api/registers/${code}/entries`);
 
       if (!response.ok) {
         throw new Error("Gagal memuat data register.");
@@ -175,7 +176,7 @@ export default function App() {
     nip: string;
     jabatan?: string;
   }) => {
-    const response = await fetch("/api/officers", {
+    const response = await authFetch("/api/officers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(officer),
@@ -196,7 +197,7 @@ export default function App() {
     id: number,
     officer: Partial<Officer>,
   ) => {
-    const response = await fetch(`/api/officers/${id}`, {
+    const response = await authFetch(`/api/officers/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(officer),
@@ -217,7 +218,7 @@ export default function App() {
   };
 
   const handleDeleteOfficer = async (id: number) => {
-    const response = await fetch(`/api/officers/${id}`, {
+    const response = await authFetch(`/api/officers/${id}`, {
       method: "DELETE",
     });
 
@@ -235,7 +236,7 @@ export default function App() {
   const handleUpdateSettings = async (
     newSettings: Partial<AppSettings>,
   ) => {
-    const response = await fetch("/api/settings", {
+    const response = await authFetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newSettings),
@@ -259,7 +260,7 @@ export default function App() {
     waktu?: string;
     data: Record<string, unknown>;
   }) => {
-    const response = await fetch(`/api/registers/${selectedCode}/entries`, {
+    const response = await authFetch(`/api/registers/${selectedCode}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entryData),
@@ -274,7 +275,7 @@ export default function App() {
 
     await fetchEntries(selectedCode);
 
-    const registerResponse = await fetch("/api/registers");
+    const registerResponse = await authFetch("/api/registers");
     const registerData = await registerResponse.json();
 
     if (registerData.registers) {
@@ -283,7 +284,7 @@ export default function App() {
   };
 
   const handleDeleteEntry = async (id: number) => {
-    const response = await fetch(
+    const response = await authFetch(
       `/api/registers/${selectedCode}/entries/${id}`,
       {
         method: "DELETE",
@@ -298,7 +299,7 @@ export default function App() {
 
     showNotification("Baris data register berhasil dihapus.");
 
-    const registerResponse = await fetch("/api/registers");
+    const registerResponse = await authFetch("/api/registers");
     const registerData = await registerResponse.json();
 
     if (registerData.registers) {
@@ -310,7 +311,7 @@ export default function App() {
     try {
       setIsSeeding(true);
 
-      const response = await fetch("/api/seed-samples", {
+      const response = await authFetch("/api/seed-samples", {
         method: "POST",
       });
 
