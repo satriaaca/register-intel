@@ -35,10 +35,16 @@ export const OfficersManager: React.FC<OfficersManagerProps> = ({
     "Jaksa Madya (IV/a)",
     "Jaksa Muda (III/d)",
     "Jaksa Pratama (III/c)",
-    "Penata Muda Tk. I (III/b)",
-    "Penata Muda (III/a)",
-    "Pengatur Tk. I (II/d)",
-    "Pengatur (II/c)",
+    "Ajun Jaksa (III/b)",
+    "Ajun Jaksa Madya (III/a)",
+    "Sena Wira (III/d)",
+    "Madya Wira (III/c)",
+    "Muda Wira (III/b)",
+    "Yuana Wira (III/a)",
+    "Sena Darma (II/d)",
+    "Madya Darma (II/c)",
+    "Muda Darma (II/b)",
+    "Yuana Darma (II/a)"
   ];
 
   const resetForm = () => {

@@ -1,37 +1,41 @@
-import React, { useState } from "react";
-import { RegisterDefinition, RegisterEntryRow, Officer, AppSettings } from "../types.ts";
+import React, { useEffect, useState } from "react";
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Download,
+  Edit3,
+  Eye,
+  FileSpreadsheet,
+  FolderArchive,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import jsPDF from "jspdf";
+
+import {
+  AppSettings,
+  Officer,
+  RegisterDefinition,
+  RegisterEntryRow,
+} from "../types.ts";
+
 import { generateRegisterPdf } from "../lib/pdf-generator.ts";
-import { EntryFormModal } from "./EntryFormModal.tsx";
-import { PdfPreviewModal } from "./PdfPreviewModal.tsx";
+
 import {
   MONTH_NAMES_ID,
   MONTH_SHORT_ID,
-  getClosingDateForPeriod,
   formatDateIndonesian,
   filterEntriesByPeriod,
-  getDefaultClosingDate,
+  getClosingDateForPeriod,
 } from "../lib/date-utils.ts";
-import {
-  Plus,
-  Download,
-  Eye,
-  Trash2,
-  Edit3,
-  FileSpreadsheet,
-  FileText,
-  FileCode,
-  Layers,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Calendar,
-  Save,
-  Filter,
-  Upload,
-  FolderArchive,
-} from "lucide-react";
-import jsPDF from "jspdf";
+
+import { EntryFormModal } from "./EntryFormModal.tsx";
 import { ImportCsvModal } from "./ImportCsvModal.tsx";
+import { PdfPreviewModal } from "./PdfPreviewModal.tsx";
 import { StorageCodesModal } from "./StorageCodesModal.tsx";
 
 interface RegisterDocumentViewProps {
@@ -39,11 +43,26 @@ interface RegisterDocumentViewProps {
   entries: RegisterEntryRow[];
   officers: Officer[];
   settings: AppSettings;
-  onSaveEntry: (data: { id?: number; nomorUrut: number; tgl?: string; waktu?: string; data: Record<string, any> }) => Promise<void>;
+  onSaveEntry: (data: {
+    id?: number;
+    nomorUrut: number;
+    tgl?: string;
+    waktu?: string;
+    data: Record<string, any>;
+  }) => Promise<void>;
   onDeleteEntry: (id: number) => Promise<void>;
-  onUpdateSettings?: (newSettings: Partial<AppSettings>) => Promise<void>;
+  onUpdateSettings?: (
+    newSettings: Partial<AppSettings>,
+  ) => Promise<void>;
   onReload: () => void;
 }
+
+type StorageCodeRecord = {
+  id?: number;
+  kode: string;
+  asal: string;
+  keterangan?: string;
+};
 
 export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   register,
@@ -56,82 +75,180 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   onReload,
 }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<RegisterEntryRow | null>(null);
+  const [editingEntry, setEditingEntry] =
+    useState<RegisterEntryRow | null>(null);
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isImportCsvOpen, setIsImportCsvOpen] = useState(false);
   const [isStorageCodesOpen, setIsStorageCodesOpen] = useState(false);
+
   const [generatedPdf, setGeneratedPdf] = useState<jsPDF | null>(null);
 
-  // In-app Delete Confirmation State
-  const [entryToDelete, setEntryToDelete] = useState<RegisterEntryRow | null>(null);
+  const [entryToDelete, setEntryToDelete] =
+    useState<RegisterEntryRow | null>(null);
+
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Paper Orientation State (Dynamic Landscape / Portrait switcher)
-  const [currentOrientation, setCurrentOrientation] = useState<"landscape" | "portrait">(
-    register.orientation || "landscape"
+  const [currentOrientation, setCurrentOrientation] = useState<
+    "landscape" | "portrait"
+  >(register.orientation || "landscape");
+
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number | "all">(1);
+
+  const [isEditingClosingDate, setIsEditingClosingDate] = useState(false);
+  const [tempClosingDate, setTempClosingDate] = useState("");
+  const [isSavingClosingDate, setIsSavingClosingDate] = useState(false);
+
+  /*
+   * Map:
+   * kode penyimpanan -> asal instansi.
+   *
+   * Contoh:
+   * ARSIP-01 -> Kepala Kejaksaan Negeri Tabanan
+   */
+  const [storageCodeMap, setStorageCodeMap] = useState<Map<string, string>>(
+    new Map(),
   );
 
-  // Update orientation state when selected register changes
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentOrientation(register.orientation || "landscape");
   }, [register.code, register.orientation]);
 
-  // Monthly Period State
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  // Default to January (1) or current month
-  const [selectedMonth, setSelectedMonth] = useState<number | "all">(1);
-  const [isEditingClosingDate, setIsEditingClosingDate] = useState(false);
-  const [tempClosingDate, setTempClosingDate] = useState<string>("");
-  const [isSavingClosingDate, setIsSavingClosingDate] = useState(false);
+  useEffect(() => {
+    if (register.code !== "R.IN.6") {
+      setStorageCodeMap(new Map());
+      return;
+    }
 
-  // Compute active closing date
-  const activeMonthIdx = typeof selectedMonth === "number" ? selectedMonth : 1;
+    const loadStorageCodes = async () => {
+      try {
+        const response = await fetch("/api/storage-codes");
+
+        if (!response.ok) {
+          throw new Error("Gagal memuat kode penyimpanan.");
+        }
+
+        const list: StorageCodeRecord[] = await response.json();
+        const nextMap = new Map<string, string>();
+
+        if (Array.isArray(list)) {
+          list.forEach((item) => {
+            const kode = String(item.kode || "").trim();
+            const asal = String(item.asal || "").trim();
+
+            if (kode) {
+              nextMap.set(kode, asal);
+            }
+          });
+        }
+
+        setStorageCodeMap(nextMap);
+      } catch (error) {
+        console.error("Gagal memuat data kode penyimpanan:", error);
+        setStorageCodeMap(new Map());
+      }
+    };
+
+    void loadStorageCodes();
+  }, [register.code, isStorageCodesOpen]);
+
   const activeClosingDate =
     typeof selectedMonth === "number"
       ? getClosingDateForPeriod(settings, selectedYear, selectedMonth)
       : settings.tanggalDokumen || new Date().toISOString().split("T")[0];
 
-  const activeClosingDateFormatted = formatDateIndonesian(activeClosingDate, false);
-  const activeClosingDateWithDay = formatDateIndonesian(activeClosingDate, true);
+  const activeClosingDateFormatted = formatDateIndonesian(
+    activeClosingDate,
+    false,
+  );
 
-  // Filter entries based on selected monthly period
-  const filteredEntries = filterEntriesByPeriod(entries, selectedYear, selectedMonth);
+  const activeClosingDateWithDay = formatDateIndonesian(
+    activeClosingDate,
+    true,
+  );
 
-  // Officer lookup
+  const filteredEntries = filterEntriesByPeriod(
+    entries,
+    selectedYear,
+    selectedMonth,
+  );
+
   const officerMap = new Map<number, Officer>();
-  officers.forEach((o) => officerMap.set(o.id, o));
 
-  const formatOfficerValue = (val: any) => {
-    if (!val) return <span className="text-slate-400">-</span>;
-    if (Array.isArray(val)) {
-      if (val.length === 0) return <span className="text-slate-400">-</span>;
+  officers.forEach((officer) => {
+    officerMap.set(officer.id, officer);
+  });
+
+  const formatOfficerValue = (value: any) => {
+    if (!value) {
+      return <span className="text-slate-400">-</span>;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return <span className="text-slate-400">-</span>;
+      }
+
       return (
         <div className="flex flex-wrap gap-1">
-          {val.map((id) => {
-            const off = officerMap.get(Number(id));
+          {value.map((id) => {
+            const officer = officerMap.get(Number(id));
+
             return (
               <span
                 key={id}
-                className="inline-flex items-center text-[10px] bg-emerald-50 text-emerald-900 border border-emerald-300 px-1.5 py-0.2 rounded font-medium"
+                className="inline-flex items-center rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-900"
               >
-                {off ? off.nama : `Petugas #${id}`}
+                {officer ? officer.nama : `Petugas #${id}`}
               </span>
             );
           })}
         </div>
       );
     }
-    if (typeof val === "number") {
-      const off = officerMap.get(val);
-      return off ? (
-        <span className="inline-flex items-center text-[10px] bg-emerald-50 text-emerald-900 border border-emerald-300 px-1.5 py-0.2 rounded font-medium">
-          {off.nama}
+
+    if (typeof value === "number") {
+      const officer = officerMap.get(value);
+
+      return officer ? (
+        <span className="inline-flex items-center rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-900">
+          {officer.nama}
         </span>
       ) : (
-        String(val)
+        String(value)
       );
     }
-    return String(val);
+
+    return String(value);
+  };
+
+  /*
+   * Hanya dipakai pada tabel preview aplikasi R.IN.6.
+   * Kelas print:hidden menghilangkan badge saat halaman dicetak oleh browser.
+   */
+  const renderStorageCodePreview = (value: unknown) => {
+    const kode = String(value || "").trim();
+
+    if (!kode || kode === "-") {
+      return <span className="text-slate-400">-</span>;
+    }
+
+    const asal = storageCodeMap.get(kode) || "";
+
+    return (
+      <div className="print:hidden flex min-w-[150px] flex-col gap-1">
+        <span className="inline-flex w-fit items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-900">
+          {kode}
+        </span>
+
+        {asal && (
+          <span className="inline-flex w-fit items-center rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-sky-900">
+            {asal}
+          </span>
+        )}
+      </div>
+    );
   };
 
   const handleOpenNew = () => {
@@ -145,21 +262,24 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!entryToDelete) return;
+    if (!entryToDelete) {
+      return;
+    }
+
     try {
       setIsDeleting(true);
       await onDeleteEntry(entryToDelete.id);
       setEntryToDelete(null);
       onReload();
-    } catch (err: any) {
-      console.error("Error deleting entry:", err);
+    } catch (error) {
+      console.error("Error deleting entry:", error);
     } finally {
       setIsDeleting(false);
     }
   };
 
   const handleGeneratePdf = () => {
-    const doc = generateRegisterPdf({
+    return generateRegisterPdf({
       register,
       entries: filteredEntries,
       settings,
@@ -169,22 +289,26 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
       customClosingDate: activeClosingDate,
       orientationOverride: currentOrientation,
     });
-    return doc;
   };
 
   const handleDownloadPdf = () => {
-    const doc = handleGeneratePdf();
+    const document = handleGeneratePdf();
+
     const periodSlug =
       typeof selectedMonth === "number"
         ? `_${MONTH_NAMES_ID[selectedMonth - 1]}_${selectedYear}`
         : `_${selectedYear}`;
-    const filename = `${register.code}${periodSlug}_${register.title.replace(/[\/\s,]+/g, "_").slice(0, 35)}.pdf`;
-    doc.save(filename);
+
+    const filename = `${register.code}${periodSlug}_${register.title
+      .replace(/[\/\s,]+/g, "_")
+      .slice(0, 35)}.pdf`;
+
+    document.save(filename);
   };
 
   const handlePreviewPdf = () => {
-    const doc = handleGeneratePdf();
-    setGeneratedPdf(doc);
+    const document = handleGeneratePdf();
+    setGeneratedPdf(document);
     setIsPreviewOpen(true);
   };
 
@@ -194,78 +318,101 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   };
 
   const handleSaveClosingDate = async () => {
-    if (!onUpdateSettings || typeof selectedMonth !== "number") return;
+    if (!onUpdateSettings || typeof selectedMonth !== "number") {
+      return;
+    }
+
     try {
       setIsSavingClosingDate(true);
-      const monthKey = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+
+      const monthKey = `${selectedYear}-${String(selectedMonth).padStart(
+        2,
+        "0",
+      )}`;
+
       const newClosingDates = {
         ...(settings.closingDates || {}),
         [monthKey]: tempClosingDate,
       };
+
       await onUpdateSettings({
         closingDates: newClosingDates,
       });
+
       setIsEditingClosingDate(false);
-    } catch (e: any) {
-      console.error("Gagal memperbarui tanggal penutupan:", e);
+    } catch (error) {
+      console.error("Gagal memperbarui tanggal penutupan:", error);
     } finally {
       setIsSavingClosingDate(false);
     }
   };
 
-  // Next Nomor Urut
-  const nextNomorUrut = filteredEntries.length > 0 ? Math.max(...filteredEntries.map((e) => e.nomorUrut || 0)) + 1 : 1;
+  const nextNomorUrut =
+    filteredEntries.length > 0
+      ? Math.max(...filteredEntries.map((entry) => entry.nomorUrut || 0)) + 1
+      : 1;
 
   const currentPeriodLabel =
     typeof selectedMonth === "number"
       ? `Bulan ${MONTH_NAMES_ID[selectedMonth - 1]} ${selectedYear}`
       : `Tahun Takwim ${selectedYear} (Semua Bulan)`;
 
+  // Mendapatkan daftar kolom datar (termasuk subColumns) untuk rendering border baris
+  const flattenedColumns = register.columns.flatMap((col) =>
+    col.subColumns && col.subColumns.length > 0 ? col.subColumns : [col],
+  );
+
   return (
     <div className="space-y-3.5">
-      {/* Monthly Period Filter & Status Ribbon */}
-      <div className="bg-white rounded-lg shadow-2xs border border-slate-200 p-3 flex flex-col gap-2.5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-          {/* Year and Quick Period Info */}
+      <div className="flex flex-col gap-2.5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col justify-between gap-2.5 md:flex-row md:items-center">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded border border-slate-300">
-              <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+            <div className="flex items-center gap-1.5 rounded border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-800">
+              <Calendar className="h-3.5 w-3.5 text-emerald-700" />
               <span>Tahun:</span>
+
               <select
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-                className="bg-transparent font-bold text-emerald-800 outline-none cursor-pointer"
+                onChange={(event) =>
+                  setSelectedYear(Number.parseInt(event.target.value, 10))
+                }
+                className="cursor-pointer bg-transparent font-bold text-emerald-800 outline-none"
               >
-                {(settings.availableYears && settings.availableYears.length > 0
+                {(settings.availableYears &&
+                  settings.availableYears.length > 0
                   ? settings.availableYears
                   : [2024, 2025, 2026, 2027, 2028]
-                ).map((yr) => (
-                  <option key={yr} value={yr}>
-                    {yr}
+                ).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
                   </option>
                 ))}
               </select>
             </div>
 
-            <span className="text-[11px] font-semibold text-slate-600 bg-emerald-50 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded">
+            <span className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900">
               Periode Aktif: {currentPeriodLabel}
             </span>
           </div>
 
-          {/* Closing Date of Selected Month Banner */}
           {typeof selectedMonth === "number" && (
-            <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-amber-900">
-              <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <div className="flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs text-amber-900">
+              <Clock className="h-3.5 w-3.5 shrink-0 text-amber-700" />
+
               {!isEditingClosingDate ? (
                 <div className="flex items-center gap-2">
                   <span>
-                    Tutup Register: <strong className="font-semibold">{activeClosingDateWithDay}</strong>
+                    Tutup Register:{" "}
+                    <strong className="font-semibold">
+                      {activeClosingDateWithDay}
+                    </strong>
                   </span>
+
                   {onUpdateSettings && (
                     <button
+                      type="button"
                       onClick={handleStartEditClosingDate}
-                      className="text-[10px] font-bold text-amber-800 underline hover:text-emerald-700 cursor-pointer"
-                      title="Ubah tanggal penutupan khusus bulan ini"
+                      className="cursor-pointer text-[10px] font-bold text-amber-800 underline hover:text-emerald-700"
                     >
                       Ubah Tanggal Tutup
                     </button>
@@ -274,21 +421,28 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
               ) : (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px]">Tgl Tutup:</span>
+
                   <input
                     type="date"
                     value={tempClosingDate}
-                    onChange={(e) => setTempClosingDate(e.target.value)}
-                    className="px-1.5 py-0.5 text-xs bg-white border border-amber-400 rounded font-mono"
+                    onChange={(event) =>
+                      setTempClosingDate(event.target.value)
+                    }
+                    className="rounded border border-amber-400 bg-white px-1.5 py-0.5 font-mono text-xs"
                   />
+
                   <button
+                    type="button"
                     onClick={handleSaveClosingDate}
                     disabled={isSavingClosingDate}
-                    className="px-2 py-0.5 text-[11px] font-bold bg-emerald-700 text-white rounded hover:bg-emerald-800 flex items-center gap-1"
+                    className="flex items-center gap-1 rounded bg-emerald-700 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-emerald-800"
                   >
-                    <Save className="w-3 h-3" />
+                    <Save className="h-3 w-3" />
                     <span>{isSavingClosingDate ? "..." : "Simpan"}</span>
                   </button>
+
                   <button
+                    type="button"
                     onClick={() => setIsEditingClosingDate(false)}
                     className="px-1.5 py-0.5 text-[11px] text-slate-600 hover:text-slate-800"
                   >
@@ -300,43 +454,49 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
           )}
         </div>
 
-        {/* 12 Months Tabs Navigation */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs scrollbar-thin">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs">
           <button
+            type="button"
             onClick={() => setSelectedMonth("all")}
-            className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-              selectedMonth === "all"
-                ? "bg-slate-800 text-white shadow-2xs font-bold"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-            }`}
+            className={`cursor-pointer whitespace-nowrap rounded px-2.5 py-1 text-xs font-semibold transition ${selectedMonth === "all"
+                ? "bg-slate-800 font-bold text-white shadow-sm"
+                : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
           >
             Semua Bulan ({entries.length})
           </button>
 
-          {MONTH_NAMES_ID.map((name, idx) => {
-            const mNum = idx + 1;
-            const isSelected = selectedMonth === mNum;
-            const count = filterEntriesByPeriod(entries, selectedYear, mNum).length;
+          {MONTH_NAMES_ID.map((name, index) => {
+            const monthNumber = index + 1;
+            const isSelected = selectedMonth === monthNumber;
+
+            const count = filterEntriesByPeriod(
+              entries,
+              selectedYear,
+              monthNumber,
+            ).length;
 
             return (
               <button
-                key={mNum}
+                key={monthNumber}
+                type="button"
                 onClick={() => {
-                  setSelectedMonth(mNum);
+                  setSelectedMonth(monthNumber);
                   setIsEditingClosingDate(false);
                 }}
-                className={`px-2 py-1 rounded text-xs whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
-                  isSelected
-                    ? "bg-emerald-700 text-white font-bold shadow-2xs"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 font-medium"
-                }`}
+                className={`flex cursor-pointer items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs transition ${isSelected
+                    ? "bg-emerald-700 font-bold text-white shadow-sm"
+                    : "border border-slate-200 bg-slate-100 font-medium text-slate-700 hover:bg-slate-200"
+                  }`}
               >
-                <span>{MONTH_SHORT_ID[idx]}</span>
+                <span>{MONTH_SHORT_ID[index]}</span>
+
                 {count > 0 && (
                   <span
-                    className={`text-[9px] px-1 py-0.2 rounded-full font-mono font-bold ${
-                      isSelected ? "bg-white text-emerald-800" : "bg-emerald-100 text-emerald-800"
-                    }`}
+                    className={`rounded-full px-1 py-0.5 font-mono text-[9px] font-bold ${isSelected
+                        ? "bg-white text-emerald-800"
+                        : "bg-emerald-100 text-emerald-800"
+                      }`}
                   >
                     {count}
                   </span>
@@ -347,293 +507,350 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         </div>
       </div>
 
-      {/* High Density Toolbar & Metadata Strip */}
-      <div className="bg-white rounded-lg shadow-2xs border border-slate-200 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="flex flex-col justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-center">
         <div>
-          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-emerald-700 text-white">
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <span className="rounded bg-emerald-700 px-2 py-0.5 font-mono text-xs font-bold text-white">
               {register.code}
             </span>
+
             <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                register.orientation === "landscape"
-                  ? "bg-amber-50 text-amber-800 border-amber-300"
-                  : "bg-blue-50 text-blue-800 border-blue-300"
-              }`}
+              className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase ${register.orientation === "landscape"
+                  ? "border-amber-300 bg-amber-50 text-amber-800"
+                  : "border-blue-300 bg-blue-50 text-blue-800"
+                }`}
             >
               Format {register.orientation} (A4)
             </span>
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-emerald-50 text-emerald-900 rounded border border-emerald-300">
+
+            <span className="rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900">
               Periode Bulanan: {currentPeriodLabel}
             </span>
-            <span className="text-[11px] text-slate-500 font-mono">
-              • {filteredEntries.length} baris data pada periode ini ({entries.length} total tahunan)
+
+            <span className="font-mono text-[11px] text-slate-500">
+              • {filteredEntries.length} baris data pada periode ini (
+              {entries.length} total tahunan)
             </span>
           </div>
 
-          <h2 className="text-sm sm:text-base font-bold text-slate-900 font-serif leading-snug">
+          <h2 className="font-serif text-sm font-bold leading-snug text-slate-900 sm:text-base">
             {register.title}
           </h2>
+
           {register.subtitle && (
-            <p className="text-[11px] text-slate-600 font-medium">{register.subtitle}</p>
+            <p className="text-[11px] font-medium text-slate-600">
+              {register.subtitle}
+            </p>
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {/* Dynamic Orientation Switcher */}
           <button
             id="btn-toggle-orientation"
-            onClick={() => setCurrentOrientation((prev) => (prev === "landscape" ? "portrait" : "landscape"))}
-            title="Klik untuk mengubah orientasi dokumen cetak PDF antara Landscape dan Portrait"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded border shadow-2xs transition cursor-pointer ${
-              currentOrientation === "landscape"
-                ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
-                : "bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100"
-            }`}
+            type="button"
+            onClick={() =>
+              setCurrentOrientation((previous) =>
+                previous === "landscape" ? "portrait" : "landscape",
+              )
+            }
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1.5 text-xs font-bold shadow-sm transition ${currentOrientation === "landscape"
+                ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                : "border-blue-300 bg-blue-50 text-blue-900 hover:bg-blue-100"
+              }`}
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Format: {currentOrientation === "landscape" ? "Landscape" : "Portrait"}</span>
-            <span className="text-[10px] text-emerald-800 font-normal underline ml-0.5">Ubah</span>
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            <span>
+              Format:{" "}
+              {currentOrientation === "landscape"
+                ? "Landscape"
+                : "Portrait"}
+            </span>
           </button>
 
           <button
             id="btn-add-entry-row"
+            type="button"
             onClick={handleOpenNew}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-2xs transition cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="h-3.5 w-3.5" />
             <span>Tambah Baris</span>
           </button>
 
           {register.code === "R.IN.6" && (
             <button
               id="btn-manage-storage-codes"
+              type="button"
               onClick={() => setIsStorageCodesOpen(true)}
-              title="Kelola tabel relasi Nomor dan Asal Kode Penyimpanan Arsip"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded shadow-2xs transition cursor-pointer"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100"
             >
-              <FolderArchive className="w-3.5 h-3.5 text-amber-700" />
+              <FolderArchive className="h-3.5 w-3.5 text-amber-700" />
               <span>Kode Penyimpanan</span>
             </button>
           )}
 
           <button
             id="btn-import-csv"
+            type="button"
             onClick={() => setIsImportCsvOpen(true)}
-            title="Impor data massal dari file CSV atau teks CSV"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded shadow-2xs transition cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100"
           >
-            <Upload className="w-3.5 h-3.5 text-emerald-700" />
+            <Upload className="h-3.5 w-3.5 text-emerald-700" />
             <span>Impor CSV</span>
           </button>
 
           <button
             id="btn-preview-pdf"
+            type="button"
             onClick={handlePreviewPdf}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded shadow-2xs transition cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            <Eye className="w-3.5 h-3.5 text-slate-600" />
+            <Eye className="h-3.5 w-3.5 text-slate-600" />
             <span>Pratinjau PDF</span>
           </button>
 
           <button
             id="btn-download-pdf-direct"
+            type="button"
             onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 rounded shadow-2xs transition cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm transition hover:bg-amber-500"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="h-3.5 w-3.5" />
             <span>Unduh PDF Periode</span>
           </button>
         </div>
       </div>
 
-      {/* Official Register Document Canvas Preview (Visual Paper Style) */}
-      <div className="bg-white rounded-lg shadow-xs border border-slate-300 p-4 sm:p-6 font-sans">
-        {/* Document Header Box */}
-        <div className="border border-slate-900 p-3 rounded-xs mb-4 relative">
-          <div className="absolute top-2 right-2.5 font-mono font-bold text-xs text-slate-800">
+      <div className="rounded-lg border border-slate-300 bg-white p-4 font-sans shadow-sm sm:p-6">
+        <div className="relative mb-4 rounded-sm border border-slate-900 p-3">
+          <div className="absolute right-2.5 top-2 font-mono text-xs font-bold text-slate-800">
             {register.code}
           </div>
 
-          <div className="text-left font-bold text-[11px] uppercase text-slate-900 mb-1">
+          <div className="mb-1 text-left text-[11px] font-bold uppercase text-slate-900">
             {settings.kejaksaanName}*)
           </div>
 
-          <div className="text-center my-2">
-            <h1 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide font-serif">
+          <div className="my-2 text-center">
+            <h1 className="font-serif text-xs font-bold uppercase tracking-wide text-slate-900 sm:text-sm">
               {register.title}
             </h1>
+
             {register.subtitle && (
-              <p className="text-[11px] font-semibold text-slate-700 mt-0.5 uppercase">
+              <p className="mt-0.5 text-[11px] font-semibold uppercase text-slate-700">
                 {register.subtitle}
               </p>
             )}
-            <p className="text-[11px] font-bold text-emerald-800 mt-1 uppercase">
-              PERIODE: {typeof selectedMonth === "number" ? `BULAN ${MONTH_NAMES_ID[selectedMonth - 1].toUpperCase()}` : "SEMUA BULAN"} - TAHUN TAKWIM {selectedYear}
+
+            <p className="mt-1 text-[11px] font-bold uppercase text-emerald-800">
+              PERIODE:{" "}
+              {typeof selectedMonth === "number"
+                ? `BULAN ${MONTH_NAMES_ID[
+                  selectedMonth - 1
+                ].toUpperCase()}`
+                : "SEMUA BULAN"}{" "}
+              - TAHUN TAKWIM {selectedYear}
             </p>
           </div>
         </div>
 
-        {/* Register Table */}
-        <div className="overflow-x-auto border border-slate-900 rounded-xs">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* CONTAINER TABEL RELATIVE */}
+        <div className="relative overflow-x-auto rounded-sm border border-slate-900">
+          <table className="w-full border-collapse text-left text-xs">
             <thead>
-              {/* Level 1 Header */}
-              <tr className="bg-slate-100 border-b border-slate-900 text-slate-900 text-center font-bold">
-                {register.columns.map((col) => {
-                  if (col.subColumns && col.subColumns.length > 0) {
+              <tr className="border-b border-slate-900 bg-slate-100 text-center text-[10px] font-bold text-slate-900">
+                {register.columns.map((column) => {
+                  if (
+                    column.subColumns &&
+                    column.subColumns.length > 0
+                  ) {
                     return (
                       <th
-                        key={col.key}
-                        colSpan={col.subColumns.length}
-                        className="border-r border-slate-900 px-2 py-1.5 uppercase text-[10px] bg-slate-200/70"
+                        key={column.key}
+                        colSpan={column.subColumns.length}
+                        className="border-r border-slate-900 bg-slate-200/70 px-2 py-1.5 uppercase"
                       >
-                        {col.label}
+                        {column.label}
                       </th>
                     );
                   }
+
                   return (
                     <th
-                      key={col.key}
-                      rowSpan={register.columns.some((c) => c.subColumns) ? 2 : 1}
-                      className="border-r border-slate-900 px-2 py-1.5 uppercase text-[10px]"
+                      key={column.key}
+                      rowSpan={
+                        register.columns.some((item) => item.subColumns)
+                          ? 2
+                          : 1
+                      }
+                      className="border-r border-slate-900 px-2 py-1.5 uppercase"
                     >
-                      {col.label}
+                      {column.label}
                     </th>
                   );
                 })}
+
                 <th
-                  rowSpan={register.columns.some((c) => c.subColumns) ? 2 : 1}
-                  className="px-2 py-1.5 uppercase text-[10px] w-16 text-center bg-slate-200/80"
+                  rowSpan={
+                    register.columns.some((column) => column.subColumns)
+                      ? 2
+                      : 1
+                  }
+                  className="w-16 bg-slate-200/80 px-2 py-1.5 text-center uppercase"
                 >
                   AKSI
                 </th>
               </tr>
 
-              {/* Level 2 Sub-columns if applicable */}
-              {register.columns.some((c) => c.subColumns) && (
-                <tr className="bg-slate-100 border-b border-slate-900 text-slate-900 text-center font-bold">
+              {register.columns.some((column) => column.subColumns) && (
+                <tr className="border-b border-slate-900 bg-slate-100 text-center text-[9px] font-bold text-slate-900">
                   {register.columns
-                    .filter((c) => c.subColumns && c.subColumns.length > 0)
-                    .flatMap((c) => c.subColumns!)
-                    .map((sc) => (
+                    .filter(
+                      (column) =>
+                        column.subColumns &&
+                        column.subColumns.length > 0,
+                    )
+                    .flatMap((column) => column.subColumns || [])
+                    .map((subColumn) => (
                       <th
-                        key={sc.key}
-                        className="border-r border-slate-900 px-1.5 py-1 uppercase text-[9px]"
+                        key={subColumn.key}
+                        className="border-r border-slate-900 px-1.5 py-1 uppercase"
                       >
-                        {sc.label}
+                        {subColumn.label}
                       </th>
                     ))}
                 </tr>
               )}
 
-              {/* Column Numbers Row (Kolom 1, 2, 3, 4...) */}
-              <tr className="bg-slate-200/90 border-b border-slate-900 text-slate-800 font-bold text-center text-[9px] font-mono">
-                {register.columns.map((col) => {
-                  if (col.subColumns && col.subColumns.length > 0) {
-                    return col.subColumns.map((sc) => (
-                      <th key={sc.key} className="border-r border-slate-900 px-1 py-0.5">
-                        {sc.colNumber}
+              <tr className="border-b border-slate-900 bg-slate-200/90 text-center font-mono text-[9px] font-bold text-slate-800">
+                {register.columns.map((column) => {
+                  if (
+                    column.subColumns &&
+                    column.subColumns.length > 0
+                  ) {
+                    return column.subColumns.map((subColumn) => (
+                      <th
+                        key={subColumn.key}
+                        className="border-r border-slate-900 px-1 py-0.5"
+                      >
+                        {subColumn.colNumber}
                       </th>
                     ));
                   }
+
                   return (
-                    <th key={col.key} className="border-r border-slate-900 px-1 py-0.5">
-                      {col.colNumber}
+                    <th
+                      key={column.key}
+                      className="border-r border-slate-900 px-1 py-0.5"
+                    >
+                      {column.colNumber}
                     </th>
                   );
                 })}
-                <th className="px-1 py-0.5 text-slate-500 font-normal">Edit</th>
+
+                <th className="px-1 py-0.5 font-normal text-slate-500">
+                  Edit
+                </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-400">
+            <tbody className="divide-y divide-slate-900">
               {filteredEntries.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={
-                      register.columns.reduce(
-                        (sum, c) => sum + (c.subColumns ? c.subColumns.length : 1),
-                        0
-                      ) + 1
-                    }
-                    className="px-4 py-8 text-center text-slate-400 bg-slate-50/50"
+                /* 10 Baris Kosong Bergaris/Border */
+                Array.from({ length: 10 }).map((_, rowIndex) => (
+                  <tr
+                    key={`empty-row-${rowIndex}`}
+                    className="h-10 hover:bg-slate-50/40"
                   >
-                    <div className="flex flex-col items-center justify-center gap-1.5">
-                      <FileSpreadsheet className="w-7 h-7 text-slate-300" />
-                      <p className="text-xs font-medium text-slate-600">
-                        Belum ada data dalam buku register {register.code} pada periode {currentPeriodLabel}.
-                      </p>
-                      <button
-                        onClick={handleOpenNew}
-                        className="text-xs text-emerald-700 hover:text-emerald-800 font-bold underline cursor-pointer"
+                    {flattenedColumns.map((col, colIdx) => (
+                      <td
+                        key={`empty-col-${colIdx}`}
+                        className="border-r border-slate-900 px-2 py-1.5 text-center"
                       >
-                        + Tambah Baris Baru pada Periode Ini
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        &nbsp;
+                      </td>
+                    ))}
+                    <td className="w-16 bg-slate-50/20 px-1 py-1.5 text-center">
+                      &nbsp;
+                    </td>
+                  </tr>
+                ))
               ) : (
-                filteredEntries.map((entry, idx) => {
-                  const d = entry.data || {};
+                filteredEntries.map((entry, index) => {
+                  const data = entry.data || {};
+
                   return (
-                    <tr key={entry.id} className="hover:bg-amber-50/50 transition">
-                      {register.columns.map((col) => {
-                        if (col.subColumns && col.subColumns.length > 0) {
-                          return col.subColumns.map((sc) => (
+                    <tr
+                      key={entry.id}
+                      className="transition hover:bg-amber-50/50"
+                    >
+                      {register.columns.map((column) => {
+                        if (
+                          column.subColumns &&
+                          column.subColumns.length > 0
+                        ) {
+                          return column.subColumns.map((subColumn) => (
                             <td
-                              key={sc.key}
-                              className="border-r border-slate-900 px-2 py-1.5 align-top text-xs text-slate-900 whitespace-pre-wrap"
+                              key={subColumn.key}
+                              className="whitespace-pre-wrap border-r border-slate-900 px-2 py-1.5 align-top text-xs text-slate-900"
                             >
-                              {sc.type === "officer_multi" || sc.type === "officer_single"
-                                ? formatOfficerValue(d[sc.key])
-                                : d[sc.key] || "-"}
+                              {subColumn.type === "officer_multi" ||
+                                subColumn.type === "officer_single"
+                                ? formatOfficerValue(data[subColumn.key])
+                                : data[subColumn.key] || "-"}
                             </td>
                           ));
                         }
 
-                        if (col.key === "no") {
+                        if (column.key === "no") {
                           return (
                             <td
-                              key={col.key}
-                              className="border-r border-slate-900 px-1.5 py-1.5 text-center font-bold text-slate-900 align-top font-mono"
+                              key={column.key}
+                              className="border-r border-slate-900 px-1.5 py-1.5 align-top text-center font-mono font-bold text-slate-900"
                             >
-                              {entry.nomorUrut || idx + 1}
+                              {entry.nomorUrut || index + 1}
                             </td>
                           );
                         }
 
                         return (
                           <td
-                            key={col.key}
-                            className="border-r border-slate-900 px-2 py-1.5 align-top text-xs text-slate-900 whitespace-pre-wrap"
+                            key={column.key}
+                            className="whitespace-pre-wrap border-r border-slate-900 px-2 py-1.5 align-top text-xs text-slate-900"
                           >
-                            {col.type === "officer_multi" || col.type === "officer_single"
-                              ? formatOfficerValue(d[col.key])
-                              : d[col.key] || "-"}
+                            {column.type === "officer_multi" ||
+                              column.type === "officer_single"
+                              ? formatOfficerValue(data[column.key])
+                              : register.code === "R.IN.6" &&
+                                column.key === "kode_penyimpanan"
+                                ? renderStorageCodePreview(
+                                  data[column.key],
+                                )
+                                : data[column.key] || "-"}
                           </td>
                         );
                       })}
 
-                      {/* Row Actions */}
-                      <td className="px-1 py-1.5 text-center align-top bg-slate-50/60">
+                      <td className="bg-slate-50/60 px-1 py-1.5 text-center align-top">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             id={`btn-edit-row-${entry.id}`}
+                            type="button"
                             onClick={() => handleOpenEdit(entry)}
                             title="Edit Data Baris"
-                            className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-emerald-100 rounded transition cursor-pointer"
+                            className="cursor-pointer rounded p-1 text-slate-500 transition hover:bg-emerald-100 hover:text-emerald-700"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="h-3.5 w-3.5" />
                           </button>
+
                           <button
                             id={`btn-delete-row-${entry.id}`}
+                            type="button"
                             onClick={() => setEntryToDelete(entry)}
                             title="Hapus Data Baris"
-                            className="p-1 text-slate-500 hover:text-red-700 hover:bg-red-100 rounded transition cursor-pointer"
+                            className="cursor-pointer rounded p-1 text-slate-500 transition hover:bg-red-100 hover:text-red-700"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>
@@ -643,32 +860,71 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
               )}
             </tbody>
           </table>
+
+          {/* OVERLAY TEKS NIHIL 60PT - PRESISI DI TENGAH 10 BARIS & TETAP DI TENGAH VIEWPORT SAAT SCROLL */}
+          {filteredEntries.length === 0 && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[68px] flex flex-col items-center justify-center">
+              <div className="sticky left-0 flex w-full flex-col items-center justify-center px-4">
+                <span
+                  className="select-none font-serif font-black tracking-[0.45em] pl-[0.45em] text-slate-400/80 leading-none text-center drop-shadow-xs"
+                  style={{ fontSize: "60pt" }}
+                >
+                  NIHIL
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleOpenNew}
+                  className="pointer-events-auto mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded border border-dashed border-emerald-600 bg-white/95 px-3.5 py-1.5 text-xs font-bold text-emerald-700 shadow-sm backdrop-blur-xs transition hover:bg-emerald-50 hover:border-emerald-700"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Input Baris Baru</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Formal Monthly Closure Statement (Catatan Penutupan Register Kejaksaan) */}
-        <div className="mt-4 p-2.5 border border-slate-300 rounded bg-slate-50 text-xs text-slate-800">
-          <p className="font-semibold italic text-[11px] leading-relaxed">
-            Catatan Penutupan: Pada hari ini <strong>{activeClosingDateWithDay}</strong>, Buku Register {register.code} ({register.title}) periode {currentPeriodLabel} ini ditutup dengan <strong>{filteredEntries.length} baris data register</strong>.
+        <div className="mt-4 rounded border border-slate-300 bg-slate-50 p-2.5 text-xs text-slate-800">
+          <p className="text-[11px] font-semibold italic leading-relaxed">
+            Catatan Penutupan: Pada hari ini{" "}
+            <strong>{activeClosingDateWithDay}</strong>, Buku Register{" "}
+            {register.code} ({register.title}) periode {currentPeriodLabel} ini
+            ditutup dengan{" "}
+            <strong>{filteredEntries.length} baris data register</strong>.
           </p>
         </div>
 
-        {/* Rekapitulasi Section if applicable */}
         {register.hasRekapitulasi && register.rekapitulasiFields && (
-          <div className="mt-4 p-3 border border-slate-300 rounded bg-slate-50 max-w-sm text-xs">
-            <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-1.5">
+          <div className="mt-4 max-w-sm rounded border border-slate-300 bg-slate-50 p-3 text-xs">
+            <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-900">
               Rekapitulasi Dokumen Register ({currentPeriodLabel}):
             </h4>
+
             <div className="space-y-1 text-slate-700">
-              {register.rekapitulasiFields.map((rf, idx) => {
-                const count = filteredEntries.filter((e) => {
-                  const val = e.data?.[rf.key] || e.data?.jenis_produk;
-                  return val !== undefined && val !== "" && val !== null;
+              {register.rekapitulasiFields.map((field, index) => {
+                const count = filteredEntries.filter((entry) => {
+                  const value =
+                    entry.data?.[field.key] || entry.data?.jenis_produk;
+
+                  return (
+                    value !== undefined &&
+                    value !== "" &&
+                    value !== null
+                  );
                 }).length;
+
                 return (
-                  <div key={rf.key} className="flex items-center justify-between border-b border-slate-200/60 pb-0.5 text-[11px]">
-                    <span>{idx + 1}. {rf.label}</span>
-                    <span className="font-bold text-slate-900 font-mono">
-                      : {count > 0 ? count : 0} {rf.suffix || ""}
+                  <div
+                    key={field.key}
+                    className="flex items-center justify-between border-b border-slate-200/60 pb-0.5 text-[11px]"
+                  >
+                    <span>
+                      {index + 1}. {field.label}
+                    </span>
+
+                    <span className="font-mono font-bold text-slate-900">
+                      : {count} {field.suffix || ""}
                     </span>
                   </div>
                 );
@@ -677,82 +933,121 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
           </div>
         )}
 
-        {/* Official Signers Box (Kejaksaan Dual Signatures - Split or Center) */}
-        <div className="mt-8 pt-4 border-t border-slate-300">
+        <div className="mt-8 border-t border-slate-300 pt-4">
           {settings.signatureAlignment === "center" ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs text-center max-w-2xl mx-auto">
-              {/* Left Signer Center: Kajari */}
+            <div className="mx-auto grid max-w-2xl grid-cols-1 gap-8 text-center text-xs sm:grid-cols-2">
               <div className="flex flex-col items-center space-y-0.5">
-                <p className="text-slate-600 text-[11px]">Mengetahui:</p>
-                <p className="font-bold text-slate-900 uppercase text-xs">
-                  {settings.leftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", "")}
+                <p className="text-[11px] text-slate-600">Mengetahui:</p>
+
+                <p className="text-xs font-bold uppercase text-slate-900">
+                  {settings.leftSignerTitle
+                    .replace("Mengetahui:\n", "")
+                    .replace("Mengetahui:", "")}
                 </p>
-                <div className="h-16 flex items-end justify-center">
+
+                <div className="flex h-16 items-end justify-center">
                   <div className="text-center">
-                    <p className="font-bold text-slate-900 underline text-xs">{settings.leftSignerName}</p>
-                    <p className="text-[10px] text-slate-600">{settings.leftSignerPangkatNip}</p>
+                    <p className="text-xs font-bold text-slate-900 underline">
+                      {settings.leftSignerName}
+                    </p>
+
+                    <p className="text-[10px] text-slate-600">
+                      {settings.leftSignerPangkatNip}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Right Signer Center: Kasi Intel */}
               <div className="flex flex-col items-center space-y-0.5">
-                <p className="text-slate-600 text-[11px]">
+                <p className="text-[11px] text-slate-600">
                   {settings.tempatDokumen},{" "}
-                  <strong className="text-slate-900 font-semibold">{activeClosingDateFormatted}</strong>
+                  <strong className="font-semibold text-slate-900">
+                    {activeClosingDateFormatted}
+                  </strong>
                 </p>
-                <p className="font-bold text-slate-900 uppercase text-xs">{settings.rightSignerTitle}</p>
-                <div className="h-16 flex items-end justify-center">
+
+                <p className="text-xs font-bold uppercase text-slate-900">
+                  {settings.rightSignerTitle}
+                </p>
+
+                <div className="flex h-16 items-end justify-center">
                   <div className="text-center">
-                    <p className="font-bold text-slate-900 underline text-xs">{settings.rightSignerName}</p>
-                    <p className="text-[10px] text-slate-600">{settings.rightSignerPangkatNip}</p>
+                    <p className="text-xs font-bold text-slate-900 underline">
+                      {settings.rightSignerName}
+                    </p>
+
+                    <p className="text-[10px] text-slate-600">
+                      {settings.rightSignerPangkatNip}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-start justify-between gap-6 text-xs">
-              {/* Left Signer: Kajari */}
-              <div className="w-full sm:w-60 space-y-0.5">
-                <p className="text-slate-600 text-[11px]">Mengetahui:</p>
-                <p className="font-bold text-slate-900 uppercase text-xs">
-                  {settings.leftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", "")}
+            <div className="flex flex-col items-start justify-between gap-6 text-xs sm:flex-row">
+              <div className="w-full space-y-0.5 sm:w-60">
+                <p className="text-[11px] text-slate-600">Mengetahui:</p>
+
+                <p className="text-xs font-bold uppercase text-slate-900">
+                  {settings.leftSignerTitle
+                    .replace("Mengetahui:\n", "")
+                    .replace("Mengetahui:", "")}
                 </p>
-                <div className="h-14 flex items-end">
+
+                <div className="flex h-14 items-end">
                   <div className="w-full">
-                    <p className="font-bold text-slate-900 underline text-xs">{settings.leftSignerName}</p>
-                    <p className="text-[10px] text-slate-600">{settings.leftSignerPangkatNip}</p>
+                    <p className="text-xs font-bold text-slate-900 underline">
+                      {settings.leftSignerName}
+                    </p>
+
+                    <p className="text-[10px] text-slate-600">
+                      {settings.leftSignerPangkatNip}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Right Signer: Kasi Intelijen */}
-              <div className="w-full sm:w-60 space-y-0.5 text-left sm:text-right">
-                <p className="text-slate-600 text-[11px]">
+              <div className="w-full space-y-0.5 text-left sm:w-60 sm:text-right">
+                <p className="text-[11px] text-slate-600">
                   {settings.tempatDokumen},{" "}
-                  <strong className="text-slate-900 font-semibold">{activeClosingDateFormatted}</strong>
+                  <strong className="font-semibold text-slate-900">
+                    {activeClosingDateFormatted}
+                  </strong>
                 </p>
-                <p className="font-bold text-slate-900 uppercase text-xs">{settings.rightSignerTitle}</p>
-                <div className="h-14 flex items-end justify-start sm:justify-end">
+
+                <p className="text-xs font-bold uppercase text-slate-900">
+                  {settings.rightSignerTitle}
+                </p>
+
+                <div className="flex h-14 items-end justify-start sm:justify-end">
                   <div>
-                    <p className="font-bold text-slate-900 underline text-xs">{settings.rightSignerName}</p>
-                    <p className="text-[10px] text-slate-600">{settings.rightSignerPangkatNip}</p>
+                    <p className="text-xs font-bold text-slate-900 underline">
+                      {settings.rightSignerName}
+                    </p>
+
+                    <p className="text-[10px] text-slate-600">
+                      {settings.rightSignerPangkatNip}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="mt-6 text-[10px] text-slate-400 italic border-t border-slate-200 pt-1.5 flex flex-col sm:flex-row items-center justify-between gap-1">
-            <span>{register.notes || "*) Kejaksaan ditulis hanya di sampul depan."}</span>
-            <span className="text-emerald-700 font-medium">
-              ✓ Multi-halaman: Tanda tangan otomatis ditempatkan di halaman terakhir PDF
+          <div className="mt-6 flex flex-col items-center justify-between gap-1 border-t border-slate-200 pt-1.5 text-[10px] italic text-slate-400 sm:flex-row">
+            <span>
+              {register.notes ||
+                "*) Kejaksaan ditulis hanya di sampul depan."}
+            </span>
+
+            <span className="font-medium text-emerald-700">
+              ✓ Multi-halaman: Tanda tangan otomatis ditempatkan di halaman
+              terakhir PDF
             </span>
           </div>
         </div>
       </div>
 
-      {/* Entry Modal */}
       <EntryFormModal
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
@@ -768,32 +1063,44 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         selectedMonth={selectedMonth}
       />
 
-      {/* In-App Delete Confirmation Modal */}
       {entryToDelete && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-slate-200 p-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-red-600 mb-3">
-              <div className="p-2 bg-red-100 rounded-full">
-                <Trash2 className="w-5 h-5 text-red-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="mb-3 flex items-center gap-3 text-red-600">
+              <div className="rounded-full bg-red-100 p-2">
+                <Trash2 className="h-5 w-5 text-red-600" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">Konfirmasi Hapus Data Baris</h3>
+
+              <h3 className="text-sm font-bold text-slate-900">
+                Konfirmasi Hapus Data Baris
+              </h3>
             </div>
-            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-              Apakah Anda yakin ingin menghapus data baris <strong className="text-slate-900">Nomor {entryToDelete.nomorUrut}</strong> dari buku register <strong className="text-emerald-800">{register.code}</strong>? Tindakan ini akan menghapus data secara permanen dari database.
+
+            <p className="mb-4 text-xs leading-relaxed text-slate-600">
+              Apakah Anda yakin ingin menghapus data baris{" "}
+              <strong className="text-slate-900">
+                Nomor {entryToDelete.nomorUrut}
+              </strong>{" "}
+              dari buku register{" "}
+              <strong className="text-emerald-800">{register.code}</strong>?
             </p>
+
             <div className="flex items-center justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setEntryToDelete(null)}
                 disabled={isDeleting}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+                className="cursor-pointer rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
               >
                 Batal
               </button>
+
               <button
                 id="btn-confirm-delete-entry"
+                type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDeleting ? "Menghapus..." : "Ya, Hapus Data"}
               </button>
@@ -802,25 +1109,23 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         </div>
       )}
 
-      {/* PDF Preview Modal */}
       <PdfPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         pdfDoc={generatedPdf}
-        filename={`${register.code}_${typeof selectedMonth === "number" ? MONTH_NAMES_ID[selectedMonth - 1] : "Semua"}_${selectedYear}.pdf`}
+        filename={`${register.code}_${typeof selectedMonth === "number"
+            ? MONTH_NAMES_ID[selectedMonth - 1]
+            : "Semua"
+          }_${selectedYear}.pdf`}
       />
 
-      {/* CSV Importer Modal */}
       <ImportCsvModal
         isOpen={isImportCsvOpen}
         onClose={() => setIsImportCsvOpen(false)}
         register={register}
-        onSuccess={() => {
-          onReload();
-        }}
+        onSuccess={onReload}
       />
 
-      {/* Storage Codes Modal for R.IN.6 */}
       {isStorageCodesOpen && (
         <StorageCodesModal
           isOpen={isStorageCodesOpen}

@@ -5,80 +5,96 @@ export interface ParsedCsvRow {
 }
 
 /**
- * Robust CSV parser that handles quotes, escaped quotes, commas, and newlines
+ * Baris R.IN.3 dengan kolom Hal yang dimulai dari prefix ini tidak diimpor.
+ */
+const RIN3_IGNORED_HAL_PREFIXES = [
+  "laporan bulanan",
+  "surat pengantar",
+];
+
+/**
+ * Robust CSV parser that handles quotes, escaped quotes, commas, and newlines.
  */
 export function parseCsv(text: string): string[][] {
   const result: string[][] = [];
   let row: string[] = [];
-  let currentVal = "";
+  let currentValue = "";
   let inQuotes = false;
-  let i = 0;
+  let index = 0;
 
-  while (i < text.length) {
-    const char = text[i];
-    const nextChar = text[i + 1];
+  while (index < text.length) {
+    const char = text[index];
+    const nextChar = text[index + 1];
 
     if (inQuotes) {
       if (char === '"') {
         if (nextChar === '"') {
-          // Escaped quote
-          currentVal += '"';
-          i += 2;
-          continue;
-        } else {
-          // End of quote
-          inQuotes = false;
-          i++;
+          currentValue += '"';
+          index += 2;
           continue;
         }
-      } else {
-        currentVal += char;
-        i++;
+
+        inQuotes = false;
+        index++;
         continue;
       }
-    } else {
-      if (char === '"') {
-        inQuotes = true;
-        i++;
-        continue;
-      } else if (char === ',') {
-        row.push(currentVal.trim());
-        currentVal = "";
-        i++;
-        continue;
-      } else if (char === '\r') {
-        if (nextChar === '\n') {
-          i++;
-        }
-        row.push(currentVal.trim());
-        currentVal = "";
-        if (row.some(cell => cell.length > 0)) {
-          result.push(row);
-        }
-        row = [];
-        i++;
-        continue;
-      } else if (char === '\n') {
-        row.push(currentVal.trim());
-        currentVal = "";
-        if (row.some(cell => cell.length > 0)) {
-          result.push(row);
-        }
-        row = [];
-        i++;
-        continue;
-      } else {
-        currentVal += char;
-        i++;
-        continue;
-      }
+
+      currentValue += char;
+      index++;
+      continue;
     }
+
+    if (char === '"') {
+      inQuotes = true;
+      index++;
+      continue;
+    }
+
+    if (char === ",") {
+      row.push(currentValue.trim());
+      currentValue = "";
+      index++;
+      continue;
+    }
+
+    if (char === "\r") {
+      if (nextChar === "\n") {
+        index++;
+      }
+
+      row.push(currentValue.trim());
+      currentValue = "";
+
+      if (row.some((cell) => cell.length > 0)) {
+        result.push(row);
+      }
+
+      row = [];
+      index++;
+      continue;
+    }
+
+    if (char === "\n") {
+      row.push(currentValue.trim());
+      currentValue = "";
+
+      if (row.some((cell) => cell.length > 0)) {
+        result.push(row);
+      }
+
+      row = [];
+      index++;
+      continue;
+    }
+
+    currentValue += char;
+    index++;
   }
 
-  // Last value
-  if (currentVal.length > 0 || row.length > 0) {
-    row.push(currentVal.trim());
-    if (row.some(cell => cell.length > 0)) {
+  if (currentValue.length > 0 || row.length > 0) {
+    row.push(currentValue.trim());
+
+    if (row.some((cell) => cell.length > 0)) {
       result.push(row);
     }
   }
@@ -87,41 +103,55 @@ export function parseCsv(text: string): string[][] {
 }
 
 /**
- * Generate a random time between startHour (default 9 AM) and endHour (default 15 / 3 PM)
- * Returns formatted "HH:mm" (e.g., "09:35", "11:20", "14:15")
+ * Generate a random time between startHour and endHour.
+ * Example output: 09:35, 11:20, 14:15.
  */
-export function getRandomTimeBetween(startHour: number = 9, endHour: number = 15): string {
-  const hour = Math.floor(Math.random() * (endHour - startHour + 1)) + startHour;
-  // Pick a realistic minute: 0 to 59
+export function getRandomTimeBetween(
+  startHour: number = 9,
+  endHour: number = 15,
+): string {
+  const hour =
+    Math.floor(Math.random() * (endHour - startHour + 1)) + startHour;
+
   const minute = Math.floor(Math.random() * 60);
-  const hh = hour.toString().padStart(2, "0");
-  const mm = minute.toString().padStart(2, "0");
-  return `${hh}:${mm}`;
+
+  return `${hour.toString().padStart(2, "0")}:${minute
+    .toString()
+    .padStart(2, "0")}`;
 }
 
 /**
- * Normalize date string to ISO YYYY-MM-DD
- * Handles: DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
+ * Normalize date to ISO YYYY-MM-DD.
+ * Supports DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD, and YYYY/MM/DD.
  */
 export function normalizeDateToIso(dateStr: string): string {
-  if (!dateStr) return "";
+  if (!dateStr) {
+    return "";
+  }
+
   const trimmed = dateStr.trim();
 
-  // Match DD-MM-YYYY or DD/MM/YYYY
-  const dmyMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  const dmyMatch = trimmed.match(
+    /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/,
+  );
+
   if (dmyMatch) {
     const day = dmyMatch[1].padStart(2, "0");
     const month = dmyMatch[2].padStart(2, "0");
     const year = dmyMatch[3];
+
     return `${year}-${month}-${day}`;
   }
 
-  // Match YYYY-MM-DD
-  const ymdMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  const ymdMatch = trimmed.match(
+    /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/,
+  );
+
   if (ymdMatch) {
     const year = ymdMatch[1];
     const month = ymdMatch[2].padStart(2, "0");
     const day = ymdMatch[3].padStart(2, "0");
+
     return `${year}-${month}-${day}`;
   }
 
@@ -129,16 +159,104 @@ export function normalizeDateToIso(dateStr: string): string {
 }
 
 /**
- * Transform parsed CSV rows to R.IN.1 structure according to rules:
- * - TGL (Waktu Penerimaan) = tanggal (ISO YYYY-MM-DD)
- * - JAM (Waktu Penerimaan) = RANDOM (09:00 - 15:00)
- * - NOMOR (Surat Masuk) = NOMOR
- * - TGL (Surat Masuk) = TANGGAL (ISO YYYY-MM-DD)
- * - ASAL SURAT = ASAL
- * - PERIHAL = HAL
- * - TGL/ISI (Disposisi) = TANGGAL (ISO / tanggal asli)
- * - TINDAK LANJUT = DITINDAKLANJUTI
- * - KET = -
+ * Menghilangkan spasi berlebih tetapi tidak mengubah karakter nomor surat.
+ *
+ * Contoh:
+ * R-484/N.1.17/Dsb.4/08/2026
+ * tetap tersimpan lengkap seperti semula.
+ */
+function normalizeLetterNumber(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Menemukan indeks header secara aman.
+ */
+function findColumnIndex(
+  headers: string[],
+  conditions: Array<(header: string) => boolean>,
+): number {
+  return headers.findIndex((header) =>
+    conditions.some((condition) => condition(header)),
+  );
+}
+
+/**
+ * Konfigurasi kolom standar berdasarkan struktur CSV:
+ *
+ * No | Jenis Surat | Sifat Surat | No Register Surat | Tanggal
+ * | Nomor | Asal | Tujuan | Hal | Status
+ *
+ * Sangat penting:
+ * - "No" adalah nomor urut tabel.
+ * - "No Register Surat" adalah register angka, misalnya 484.
+ * - "Nomor" adalah nomor surat lengkap, misalnya:
+ *   R-484/N.1.17/Dsb.4/08/2026
+ */
+function getStandardCsvColumnIndexes(headers: string[]) {
+  const noIdx = findColumnIndex(headers, [
+    (header) => header === "no",
+    (header) => header === "no.",
+    (header) => header === "nomor urut",
+    (header) => header === "no urut",
+  ]);
+
+  const tanggalIdx = findColumnIndex(headers, [
+    (header) => header === "tanggal",
+    (header) => header === "tgl",
+    (header) => header.includes("tanggal surat"),
+    (header) => header.includes("tgl surat"),
+  ]);
+
+  /*
+   * Header harus tepat "nomor".
+   * Jangan gunakan "No Register Surat", karena nilai kolom itu hanya angka.
+   */
+  const nomorSuratIdx = findColumnIndex(headers, [
+    (header) => header === "nomor",
+    (header) => header === "nomor surat",
+    (header) => header === "no surat",
+    (header) => header === "no. surat",
+  ]);
+
+  const asalIdx = findColumnIndex(headers, [
+    (header) => header === "asal",
+    (header) => header === "asal surat",
+    (header) => header.includes("pengirim"),
+    (header) => header.includes("satker"),
+    (header) => header === "diterima dari",
+  ]);
+
+  const halIdx = findColumnIndex(headers, [
+    (header) => header === "hal",
+    (header) => header === "perihal",
+    (header) => header.includes("uraian"),
+  ]);
+
+  return {
+    noIdx,
+    tanggalIdx,
+    nomorSuratIdx,
+    asalIdx,
+    halIdx,
+  };
+}
+
+function getCell(row: string[], index: number): string {
+  return index >= 0 ? row[index] || "" : "";
+}
+
+function getNomorUrut(
+  rawNumber: string,
+  fallbackNumber: number,
+): number {
+  const parsed = Number.parseInt(rawNumber, 10);
+
+  return Number.isNaN(parsed) ? fallbackNumber : parsed;
+}
+
+/**
+ * Transform CSV to R.IN.1.
  */
 export function transformCsvToRIn1(rows: string[][]): Array<{
   nomorUrut: number;
@@ -146,16 +264,20 @@ export function transformCsvToRIn1(rows: string[][]): Array<{
   waktu?: string;
   data: Record<string, any>;
 }> {
-  if (rows.length < 2) return [];
+  if (rows.length < 2) {
+    return [];
+  }
 
-  const header = rows[0].map(h => h.toLowerCase().trim());
-  const noIdx = header.findIndex(h => h === "no" || h === "no." || h.includes("nomor urut"));
-  const tglIdx = header.findIndex(h => h.includes("tanggal") || h === "tgl");
-  const nomorIdx = header.findIndex(h => h === "nomor" || h === "no register surat" || h.includes("no surat"));
-  const asalIdx = header.findIndex(h => h === "asal" || h.includes("asal surat") || h.includes("pengirim") || h.includes("satker"));
-  const halIdx = header.findIndex(h => h === "hal" || h.includes("perihal") || h.includes("uraian"));
+  const headers = rows[0].map((header) => header.toLowerCase().trim());
 
-  const dataRows = rows.slice(1);
+  const {
+    noIdx,
+    tanggalIdx,
+    nomorSuratIdx,
+    asalIdx,
+    halIdx,
+  } = getStandardCsvColumnIndexes(headers);
+
   const result: Array<{
     nomorUrut: number;
     tgl: string;
@@ -163,21 +285,22 @@ export function transformCsvToRIn1(rows: string[][]): Array<{
     data: Record<string, any>;
   }> = [];
 
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    if (row.length === 0 || row.every(c => !c.trim())) continue;
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
 
-    const rawNo = noIdx !== -1 ? row[noIdx] : "";
-    const parsedNo = parseInt(rawNo, 10);
-    const nomorUrut = !isNaN(parsedNo) ? parsedNo : i + 1;
+    if (row.length === 0 || row.every((cell) => !cell.trim())) {
+      continue;
+    }
 
-    const rawTgl = tglIdx !== -1 ? row[tglIdx] : "";
-    const isoDate = normalizeDateToIso(rawTgl);
+    const rawNo = getCell(row, noIdx);
+    const rawTanggal = getCell(row, tanggalIdx);
+    const rawNomorSurat = getCell(row, nomorSuratIdx);
+    const rawAsal = getCell(row, asalIdx);
+    const rawHal = getCell(row, halIdx);
+
+    const nomorUrut = getNomorUrut(rawNo, result.length + 1);
+    const isoDate = normalizeDateToIso(rawTanggal);
     const randomJam = getRandomTimeBetween(9, 15);
-
-    const rawNomor = nomorIdx !== -1 ? row[nomorIdx] : "";
-    const rawAsal = asalIdx !== -1 ? row[asalIdx] : "";
-    const rawHal = halIdx !== -1 ? row[halIdx] : "";
 
     result.push({
       nomorUrut,
@@ -186,7 +309,7 @@ export function transformCsvToRIn1(rows: string[][]): Array<{
       data: {
         tgl_terima: isoDate,
         jam_terima: randomJam,
-        nomor_surat: rawNomor.trim(),
+        nomor_surat: normalizeLetterNumber(rawNomorSurat),
         tgl_surat: isoDate,
         asal_surat: rawAsal.trim(),
         perihal: rawHal.trim(),
@@ -201,15 +324,16 @@ export function transformCsvToRIn1(rows: string[][]): Array<{
 }
 
 /**
- * Transform parsed CSV rows to R.IN.3 structure according to rules:
- * - waktu diterima = tanggal (YYYY-MM-DD)
- * - sumber/bapul = Organik Intelijen Kejari Tabanan
- * - Nilai Informasi = A1
- * - Uraian Masalah = Hal (teks setelah tanda - pertama)
- * - catatan = -
- * - Disposisi/Tindakan = Dilaporkan Kepada Pimpinan
- * - Tindak Lanjut = Hal (teks sebelum tanda - pertama) Nomor: Nomor
- * - Ket = -
+ * Transform CSV to R.IN.3.
+ *
+ * Aturan:
+ * - Waktu diterima = tanggal CSV.
+ * - Sumber/Bapul = Organik Intelijen Kejari Tabanan.
+ * - Nilai informasi = A1.
+ * - Uraian masalah = isi Hal setelah tanda "-" pertama.
+ * - Disposisi/Tindakan = Dilaporkan Kepada Pimpinan.
+ * - Tindak lanjut = isi Hal sebelum "-" + nomor surat lengkap.
+ * - Hal yang berawalan "Laporan Bulanan" atau "Surat Pengantar" diabaikan.
  */
 export function transformCsvToRIn3(rows: string[][]): Array<{
   nomorUrut: number;
@@ -217,15 +341,19 @@ export function transformCsvToRIn3(rows: string[][]): Array<{
   waktu?: string;
   data: Record<string, any>;
 }> {
-  if (rows.length < 2) return [];
+  if (rows.length < 2) {
+    return [];
+  }
 
-  const header = rows[0].map(h => h.toLowerCase().trim());
-  const noIdx = header.findIndex(h => h === "no" || h === "no." || h.includes("nomor urut"));
-  const tglIdx = header.findIndex(h => h.includes("tanggal") || h === "tgl");
-  const nomorIdx = header.findIndex(h => h === "nomor" || h === "no register surat" || h.includes("no surat"));
-  const halIdx = header.findIndex(h => h === "hal" || h.includes("perihal") || h.includes("uraian"));
+  const headers = rows[0].map((header) => header.toLowerCase().trim());
 
-  const dataRows = rows.slice(1);
+  const {
+    noIdx,
+    tanggalIdx,
+    nomorSuratIdx,
+    halIdx,
+  } = getStandardCsvColumnIndexes(headers);
+
   const result: Array<{
     nomorUrut: number;
     tgl: string;
@@ -233,33 +361,58 @@ export function transformCsvToRIn3(rows: string[][]): Array<{
     data: Record<string, any>;
   }> = [];
 
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    if (row.length === 0 || row.every(c => !c.trim())) continue;
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
 
-    const rawNo = noIdx !== -1 ? row[noIdx] : "";
-    const parsedNo = parseInt(rawNo, 10);
-    const nomorUrut = !isNaN(parsedNo) ? parsedNo : i + 1;
-
-    const rawTgl = tglIdx !== -1 ? row[tglIdx] : "";
-    const isoDate = normalizeDateToIso(rawTgl);
-
-    const rawNomor = nomorIdx !== -1 ? row[nomorIdx] : "";
-    const rawHal = halIdx !== -1 ? row[halIdx] : "";
-
-    // Parse Hal by first "-" character
-    let beforeText = rawHal.trim();
-    let afterText = rawHal.trim();
-
-    const dashIndex = rawHal.indexOf("-");
-    if (dashIndex !== -1) {
-      beforeText = rawHal.substring(0, dashIndex).trim();
-      afterText = rawHal.substring(dashIndex + 1).trim();
+    if (row.length === 0 || row.every((cell) => !cell.trim())) {
+      continue;
     }
 
-    const tindakLanjutStr = rawNomor
-      ? `${beforeText} Nomor: ${rawNomor.trim()}`
-      : `${beforeText}`;
+    const rawNo = getCell(row, noIdx);
+    const rawTanggal = getCell(row, tanggalIdx);
+    const rawNomorSurat = getCell(row, nomorSuratIdx);
+    const rawHal = getCell(row, halIdx);
+
+    const hal = rawHal.trim();
+
+    /*
+     * Normalisasi membuat semua variasi berikut tetap terdeteksi:
+     * - LAPORAN BULANAN ...
+     * - Surat Pengantar ...
+     * - "  Surat   Pengantar ..."
+     */
+    const normalizedHal = hal.toLowerCase().replace(/\s+/g, " ");
+
+    const shouldIgnore = RIN3_IGNORED_HAL_PREFIXES.some((prefix) =>
+      normalizedHal.startsWith(prefix),
+    );
+
+    if (shouldIgnore) {
+      continue;
+    }
+
+    const nomorUrut = getNomorUrut(rawNo, result.length + 1);
+    const isoDate = normalizeDateToIso(rawTanggal);
+
+    /*
+     * Nomor surat utuh, misalnya:
+     * R-484/N.1.17/Dsb.4/08/2026
+     */
+    const nomorSurat = normalizeLetterNumber(rawNomorSurat);
+
+    let judulSurat = hal;
+    let uraianMasalah = hal;
+
+    const dashIndex = hal.indexOf("-");
+
+    if (dashIndex !== -1) {
+      judulSurat = hal.slice(0, dashIndex).trim();
+      uraianMasalah = hal.slice(dashIndex + 1).trim();
+    }
+
+    const tindakLanjut = nomorSurat
+      ? `${judulSurat} Nomor: ${nomorSurat}`
+      : judulSurat;
 
     result.push({
       nomorUrut,
@@ -269,10 +422,10 @@ export function transformCsvToRIn3(rows: string[][]): Array<{
         waktu_diterima: isoDate,
         sumber_bapul: "Organik Intelijen Kejari Tabanan",
         nilai_data: "A1",
-        uraian_peristiwa: afterText,
+        uraian_peristiwa: uraianMasalah,
         catatan: "-",
         disposisi_tindakan: "Dilaporkan Kepada Pimpinan",
-        tindak_lanjut: tindakLanjutStr,
+        tindak_lanjut: tindakLanjut,
         keterangan: "-",
       },
     });
@@ -282,53 +435,58 @@ export function transformCsvToRIn3(rows: string[][]): Array<{
 }
 
 /**
- * Transform parsed CSV rows to R.IN.6 structure according to rules:
- * - WAKTU TERIMA = SET RANDOM (ANTARA JAM 9 PAGI SAMPAI 3 SORE) -> Tanggal + Jam Random
- * - DITERIMA DARI = ASAL
- * - NO & TGL SURAT = NO & TANGGAL (e.g. "B-5142/N.1.7/H.III/08/2026 tgl. 20-08-2026")
- * - PERIHAL = HAL
- * - LAMPIRAN = -
- * - KODE PENYIMPANAN = Look up by ASAL from storageCodeMappings, or default
- * - KET = DISIMPAN DALAM ARSIP
+ * Transform CSV to R.IN.6.
  */
 export function transformCsvToRIn6(
   rows: string[][],
-  storageCodeMappings: StorageCodeMapping[] = []
+  storageCodeMappings: StorageCodeMapping[] = [],
 ): Array<{
   nomorUrut: number;
   tgl: string;
   waktu?: string;
   data: Record<string, any>;
 }> {
-  if (rows.length < 2) return [];
+  if (rows.length < 2) {
+    return [];
+  }
 
-  const header = rows[0].map(h => h.toLowerCase().trim());
-  const noIdx = header.findIndex(h => h === "no" || h === "no." || h.includes("nomor urut"));
-  const tglIdx = header.findIndex(h => h.includes("tanggal") || h === "tgl");
-  const nomorIdx = header.findIndex(h => h === "nomor" || h === "no register surat" || h.includes("no surat"));
-  const asalIdx = header.findIndex(h => h === "asal" || h.includes("asal surat") || h.includes("pengirim") || h.includes("diterima dari"));
-  const halIdx = header.findIndex(h => h === "hal" || h.includes("perihal") || h.includes("uraian"));
+  const headers = rows[0].map((header) => header.toLowerCase().trim());
 
-  // Build mapping lookup helper by normalized asal
+  const {
+    noIdx,
+    tanggalIdx,
+    nomorSuratIdx,
+    asalIdx,
+    halIdx,
+  } = getStandardCsvColumnIndexes(headers);
+
   const lookupKodeByAsal = (asalName: string): string => {
-    if (!asalName) return "";
     const cleanAsal = asalName.trim().toLowerCase();
-    
-    // Exact match
-    const exact = storageCodeMappings.find(m => m.asal.trim().toLowerCase() === cleanAsal);
-    if (exact) return exact.kode;
 
-    // Partial match (if mapping asal is contained in cleanAsal or vice versa)
-    const partial = storageCodeMappings.find(m => {
-      const mAsal = m.asal.trim().toLowerCase();
-      return cleanAsal.includes(mAsal) || mAsal.includes(cleanAsal);
+    if (!cleanAsal) {
+      return "";
+    }
+
+    const exact = storageCodeMappings.find(
+      (mapping) => mapping.asal.trim().toLowerCase() === cleanAsal,
+    );
+
+    if (exact) {
+      return exact.kode;
+    }
+
+    const partial = storageCodeMappings.find((mapping) => {
+      const mappingAsal = mapping.asal.trim().toLowerCase();
+
+      return (
+        cleanAsal.includes(mappingAsal) ||
+        mappingAsal.includes(cleanAsal)
+      );
     });
-    if (partial) return partial.kode;
 
-    return "";
+    return partial?.kode || "";
   };
 
-  const dataRows = rows.slice(1);
   const result: Array<{
     nomorUrut: number;
     tgl: string;
@@ -336,40 +494,43 @@ export function transformCsvToRIn6(
     data: Record<string, any>;
   }> = [];
 
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    if (row.length === 0 || row.every(c => !c.trim())) continue;
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
 
-    const rawNo = noIdx !== -1 ? row[noIdx] : "";
-    const parsedNo = parseInt(rawNo, 10);
-    const nomorUrut = !isNaN(parsedNo) ? parsedNo : i + 1;
+    if (row.length === 0 || row.every((cell) => !cell.trim())) {
+      continue;
+    }
 
-    const rawTgl = tglIdx !== -1 ? row[tglIdx] : "";
-    const isoDate = normalizeDateToIso(rawTgl);
+    const rawNo = getCell(row, noIdx);
+    const rawTanggal = getCell(row, tanggalIdx);
+    const rawNomorSurat = getCell(row, nomorSuratIdx);
+    const rawAsal = getCell(row, asalIdx);
+    const rawHal = getCell(row, halIdx);
+
+    const nomorUrut = getNomorUrut(rawNo, result.length + 1);
+    const isoDate = normalizeDateToIso(rawTanggal);
     const randomJam = getRandomTimeBetween(9, 15);
 
-    const rawNomor = nomorIdx !== -1 ? row[nomorIdx] : "";
-    const rawAsal = asalIdx !== -1 ? row[asalIdx] : "";
-    const rawHal = halIdx !== -1 ? row[halIdx] : "";
+    const nomorSurat = normalizeLetterNumber(rawNomorSurat);
+    const tanggalSurat = rawTanggal.trim() || isoDate;
 
-    // Combined NO & TGL SURAT
-    const noTglSurat = rawNomor
-      ? `${rawNomor.trim()} tgl. ${rawTgl ? rawTgl.trim() : isoDate}`
-      : `${rawTgl ? rawTgl.trim() : isoDate}`;
+    const noTglSurat = nomorSurat
+      ? `${nomorSurat} tgl. ${tanggalSurat}`
+      : tanggalSurat;
 
-    // Look up kode penyimpanan from table
-    const matchedKode = lookupKodeByAsal(rawAsal);
-    const kodePenyimpanan = matchedKode || "ARSIP-01";
+    const kodePenyimpanan =
+      lookupKodeByAsal(rawAsal) || "ARSIP-01";
 
-    // Waktu terima format: "YYYY-MM-DD HH:mm"
-    const waktuTerimaFormatted = isoDate ? `${isoDate} ${randomJam}` : `${randomJam}`;
+    const waktuTerima = isoDate
+      ? `${isoDate} ${randomJam}`
+      : randomJam;
 
     result.push({
       nomorUrut,
       tgl: isoDate,
       waktu: randomJam,
       data: {
-        waktu_terima: waktuTerimaFormatted,
+        waktu_terima: waktuTerima,
         diterima_dari: rawAsal.trim(),
         no_tgl_surat: noTglSurat,
         perihal: rawHal.trim(),

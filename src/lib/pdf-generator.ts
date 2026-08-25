@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable, { UserOptions } from "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer } from "../types.ts";
 import { MONTH_NAMES_ID, formatDateIndonesian, getClosingDateForPeriod } from "./date-utils.ts";
 
@@ -27,7 +27,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   } = options;
   const isLandscape = (orientationOverride || register.orientation) === "landscape";
 
-  // Determine actual closing date for period
+  // Tentukan tanggal penutupan register aktif
   const rawClosingDate =
     customClosingDate ||
     (typeof selectedMonth === "number"
@@ -42,7 +42,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
       ? `${MONTH_NAMES_ID[selectedMonth - 1]} ${tahunTakwim}`
       : `Tahun ${tahunTakwim}`;
 
-  // Create jsPDF document
+  // Inisialisasi dokumen jsPDF
   const doc = new jsPDF({
     orientation: isLandscape ? "landscape" : "portrait",
     unit: "mm",
@@ -56,7 +56,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   const marginBottom = 14;
   const contentWidth = pageWidth - marginX * 2;
 
-  // Officer lookup map helper
+  // Map helper untuk lookup petugas
   const officerMap = new Map<number, Officer>();
   officers.forEach((o) => officerMap.set(o.id, o));
 
@@ -78,14 +78,11 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     return String(ids);
   };
 
-  // Build table headers (multi-level if subColumns exist)
+  // Susun header tabel (1-level atau 2-level jika ada subColumns)
   const headRows: any[] = [];
-  const colNumberRow: any[] = [];
-
   const hasSubCols = register.columns.some((c) => c.subColumns && c.subColumns.length > 0);
 
   if (!hasSubCols) {
-    // 1-level header
     const topRow = register.columns.map((c) => ({
       content: c.label,
       styles: { halign: "center", valign: "middle", fontStyle: "bold" },
@@ -98,7 +95,6 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     }));
     headRows.push(numRow);
   } else {
-    // 2-level header
     const row1: any[] = [];
     const row2: any[] = [];
     const numRow: any[] = [];
@@ -138,94 +134,89 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     headRows.push(numRow);
   }
 
-  // Build table data rows
+  // Susun baris data tabel
   const bodyRows: any[] = [];
+  const isDataEmpty = entries.length === 0;
 
-  entries.forEach((entry, index) => {
-    const rowValues: any[] = [];
-    const rowData = entry.data || {};
-
-    register.columns.forEach((col) => {
-      if (col.subColumns && col.subColumns.length > 0) {
-        col.subColumns.forEach((subCol) => {
-          let val = rowData[subCol.key] ?? "";
-          if (subCol.type === "officer_multi" || subCol.type === "officer_single") {
-            val = formatOfficerNames(val);
-          }
-          rowValues.push(val || "-");
-        });
-      } else {
-        let val = "";
-        if (col.key === "no") {
-          val = String(entry.nomorUrut || index + 1);
-        } else if (col.type === "officer_multi" || col.type === "officer_single") {
-          val = formatOfficerNames(rowData[col.key]);
-        } else {
-          val = rowData[col.key] ?? "";
-        }
-        rowValues.push(val || "-");
-      }
-    });
-
-    bodyRows.push(rowValues);
-  });
-
-  // If empty, add 3 blank placeholder rows for official print preview
-  if (bodyRows.length === 0) {
+  if (isDataEmpty) {
+    // 5 baris kosong bergaris untuk format register NIHIL
     const totalCols = register.columns.reduce(
       (sum, col) => sum + (col.subColumns ? col.subColumns.length : 1),
       0
     );
-    for (let i = 1; i <= 3; i++) {
-      const blankRow = new Array(totalCols).fill("");
-      blankRow[0] = String(i);
-      bodyRows.push(blankRow);
+    for (let i = 0; i < 5; i++) {
+      const emptyRow = new Array(totalCols).fill("");
+      bodyRows.push(emptyRow);
     }
+  } else {
+    entries.forEach((entry, index) => {
+      const rowValues: any[] = [];
+      const rowData = entry.data || {};
+
+      register.columns.forEach((col) => {
+        if (col.subColumns && col.subColumns.length > 0) {
+          col.subColumns.forEach((subCol) => {
+            let val = rowData[subCol.key] ?? "";
+            if (subCol.type === "officer_multi" || subCol.type === "officer_single") {
+              val = formatOfficerNames(val);
+            }
+            rowValues.push(val || "-");
+          });
+        } else {
+          let val = "";
+          if (col.key === "no") {
+            val = String(entry.nomorUrut || index + 1);
+          } else if (col.type === "officer_multi" || col.type === "officer_single") {
+            val = formatOfficerNames(rowData[col.key]);
+          } else {
+            val = rowData[col.key] ?? "";
+          }
+          rowValues.push(val || "-");
+        }
+      });
+
+      bodyRows.push(rowValues);
+    });
   }
 
-  // Function to draw header on every page
-  const drawPageHeader = (docInstance: jsPDF, pageNum: number, totalPages?: number) => {
+  // Fungsi menggambar judul dan kop register
+  const drawPageHeader = (docInstance: jsPDF, _pageNum: number) => {
     docInstance.setDrawColor(40, 40, 40);
     docInstance.setLineWidth(0.3);
 
-    // Document Code Top-Right
+    // Kode Register di Kanan Atas
     docInstance.setFont("helvetica", "bold");
     docInstance.setFontSize(10);
-    docInstance.text(register.code, pageWidth - marginX, marginTop + 4, { align: "right" });
+    docInstance.text(String(register.code || ""), pageWidth - marginX, marginTop + 4, { align: "right" });
 
-    // Kejaksaan Left Header
+    // Satker di Kiri Atas
     docInstance.setFont("helvetica", "bold");
     docInstance.setFontSize(9.5);
-    const kejaksaanText = `${settings.kejaksaanName.toUpperCase()}*)`;
+    const kejaksaanText = `${String(settings.kejaksaanName || "").toUpperCase()}*)`;
     docInstance.text(kejaksaanText, marginX, marginTop + 4);
 
-    // Title Centered
+    // Judul Register di Tengah
     let currentY = marginTop + 10;
     docInstance.setFont("helvetica", "bold");
     docInstance.setFontSize(11);
 
-    // Split title lines
-    const titleLines = docInstance.splitTextToSize(register.title, contentWidth - 40);
+    const titleLines = docInstance.splitTextToSize(String(register.title || ""), contentWidth - 40);
     docInstance.text(titleLines, pageWidth / 2, currentY, { align: "center" });
     currentY += titleLines.length * 4.5;
 
     if (register.subtitle) {
       docInstance.setFont("helvetica", "bold");
       docInstance.setFontSize(8.5);
-      const subLines = docInstance.splitTextToSize(register.subtitle, contentWidth - 20);
+      const subLines = docInstance.splitTextToSize(String(register.subtitle || ""), contentWidth - 20);
       docInstance.text(subLines, pageWidth / 2, currentY, { align: "center" });
       currentY += subLines.length * 3.8;
     }
 
-    // Monthly Period Line in Header
+    // Periode Register
     docInstance.setFont("helvetica", "bold");
     docInstance.setFontSize(8);
-    docInstance.text(
-      `PERIODE: ${typeof selectedMonth === "number" ? `BULAN ${MONTH_NAMES_ID[selectedMonth - 1].toUpperCase()}` : "SEMUA BULAN"} - TAHUN ${tahunTakwim}`,
-      pageWidth / 2,
-      currentY,
-      { align: "center" }
-    );
+    const periodText = `PERIODE: ${typeof selectedMonth === "number" ? `BULAN ${MONTH_NAMES_ID[selectedMonth - 1].toUpperCase()}` : "SEMUA BULAN"} - TAHUN ${tahunTakwim}`;
+    docInstance.text(periodText, pageWidth / 2, currentY, { align: "center" });
     currentY += 3.5;
 
     return currentY + 2;
@@ -233,7 +224,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
   const startY = drawPageHeader(doc, 1);
 
-  // Render Table with autoTable
+  // Render tabel menggunakan autoTable
   autoTable(doc, {
     head: headRows,
     body: bodyRows,
@@ -243,7 +234,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     styles: {
       font: "helvetica",
       fontSize: isLandscape ? 7.5 : 8,
-      cellPadding: 2,
+      cellPadding: isDataEmpty ? 4 : 2, // Padding 4mm agar 5 baris proporsional & estetis
       lineColor: [40, 40, 40],
       lineWidth: 0.25,
       textColor: [20, 20, 20],
@@ -260,25 +251,44 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
       lineColor: [40, 40, 40],
     },
     didDrawPage: (data) => {
-      // Re-draw top header on subsequent pages
       if (data.pageNumber > 1) {
         drawPageHeader(doc, data.pageNumber);
       }
 
-      // Draw Outer Page Border Frame (Official Indonesian Kejaksaan Register Book Look)
+      // Border luar halaman (Bingkai Register Resmi)
       doc.setDrawColor(60, 60, 60);
       doc.setLineWidth(0.4);
       doc.rect(marginX - 4, marginTop - 4, contentWidth + 8, pageHeight - (marginTop + marginBottom) + 8);
     },
   });
 
-  // Calculate signature on the LAST page only!
+  const lastTable = (doc as any).lastAutoTable;
+  const tableFinalY = lastTable ? Number(lastTable.finalY) : startY + 45;
+
+  // Render Watermark "N I H I L" 60pt tepat di tengah 5 baris pada halaman 1
+  if (isDataEmpty) {
+    doc.setPage(1);
+    const headerHeightEstimate = hasSubCols ? 18 : 12;
+    const tableBodyStartY = startY + headerHeightEstimate;
+    const centerY = (tableBodyStartY + tableFinalY) / 2;
+
+    doc.saveGraphicsState();
+    doc.setFont("times", "bold");
+    doc.setFontSize(60);
+    doc.setTextColor(175, 180, 190);
+    doc.text("N  I  H  I  L", pageWidth / 2, centerY + 6, {
+      align: "center",
+    });
+    doc.restoreGraphicsState();
+  }
+
+  // Pindah ke halaman terakhir untuk tanda tangan
   const totalPages = (doc as any).internal.getNumberOfPages();
   doc.setPage(totalPages);
 
-  let finalY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 5 : pageHeight - 68;
+  let finalY = tableFinalY + 5;
 
-  // Monthly Register Formal Closure Note (Catatan Penutupan Register Bulanan Kejaksaan)
+  // Catatan Penutupan Register
   if (finalY + 12 > pageHeight - marginBottom - 42) {
     doc.addPage();
     drawPageHeader(doc, totalPages + 1);
@@ -294,7 +304,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   finalY += splitClosing.length * 4 + 2;
   doc.setTextColor(0, 0, 0);
 
-  // Rekapitulasi Block if applicable
+  // Rekapitulasi jika ada
   if (register.hasRekapitulasi && register.rekapitulasiFields) {
     if (finalY + 28 > pageHeight - marginBottom - 40) {
       doc.addPage();
@@ -310,7 +320,6 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     register.rekapitulasiFields.forEach((rf, idx) => {
-      // Calculate count from entries
       const count = entries.filter((e) => {
         const val = e.data?.[rf.key] || e.data?.jenis_produk;
         return val !== undefined && val !== "" && val !== null;
@@ -323,7 +332,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     finalY += 4;
   }
 
-  // Check if signature fits on the current page; if not, add a clean final page for signatures
+  // Cek ruang penandatanganan
   const signatureHeight = 42;
   if (finalY + signatureHeight > pageHeight - marginBottom - 10) {
     doc.addPage();
@@ -331,13 +340,11 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     finalY = marginTop + 25;
   }
 
-  // Draw Signatures (Supports both "split" and "center" alignment)
+  // Tanda Tangan
   const isCenter = settings.signatureAlignment === "center";
   const tglText = `${settings.tempatDokumen}, ${closingDateFormatted}`;
 
   if (isCenter) {
-    // CENTERED SIGNATURES: Kajari on top center or Left-Right centered on columns with text-align: center
-    // Format: Kolom Kiri (Mengetahui Kajari) terpusat pada sumbu kiri, Kolom Kanan (Kasi Intel) terpusat pada sumbu kanan
     const leftCenterX = marginX + contentWidth * 0.25;
     const rightCenterX = marginX + contentWidth * 0.75;
 
@@ -346,7 +353,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     doc.text(tglText, rightCenterX, finalY, { align: "center" });
     finalY += 5;
 
-    // Left Signer Title (Mengetahui: Kepala Kejaksaan Negeri)
+    // Pejabat Kiri
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.text("Mengetahui:", leftCenterX, finalY, { align: "center" });
@@ -358,13 +365,13 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     const leftTitleLines = doc.splitTextToSize(leftTitleClean, 75);
     doc.text(leftTitleLines, leftCenterX, finalY, { align: "center" });
 
-    // Right Signer Title (Kepala Seksi Intelijen)
+    // Pejabat Kanan
     const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 75);
     doc.text(rightTitleLines, rightCenterX, finalY, { align: "center" });
 
     finalY += 22;
 
-    // Left Signer Name & NIP
+    // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(settings.leftSignerName, leftCenterX, finalY, { align: "center" });
@@ -376,7 +383,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     doc.setFontSize(8);
     doc.text(settings.leftSignerPangkatNip, leftCenterX, finalY + 4.5, { align: "center" });
 
-    // Right Signer Name & NIP
+    // Nama Pejabat Kanan
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(settings.rightSignerName, rightCenterX, finalY, { align: "center" });
@@ -387,18 +394,15 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     doc.setFontSize(8);
     doc.text(settings.rightSignerPangkatNip, rightCenterX, finalY + 4.5, { align: "center" });
   } else {
-    // SPLIT SIGNATURES (Left: Kajari, Right: Kasi Intelijen)
     const leftX = marginX + (isLandscape ? 20 : 10);
     const rightX = pageWidth - marginX - (isLandscape ? 80 : 70);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-
-    // Right Top Date (Using the monthly closing date)
     doc.text(tglText, rightX, finalY);
     finalY += 5;
 
-    // Left Signer Title (Mengetahui: Kepala Kejaksaan Negeri Tabanan)
+    // Pejabat Kiri
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.text("Mengetahui:", leftX, finalY);
@@ -409,14 +413,13 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     const leftTitleLines = doc.splitTextToSize(settings.leftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", ""), 80);
     doc.text(leftTitleLines, leftX, finalY);
 
-    // Right Signer Title (Kepala Seksi Intelijen)
+    // Pejabat Kanan
     const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 80);
     doc.text(rightTitleLines, rightX, finalY);
 
-    // Signature space gap
     finalY += 22;
 
-    // Left Signer Name & NIP
+    // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(settings.leftSignerName, leftX, finalY);
@@ -428,7 +431,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     doc.setFontSize(8);
     doc.text(settings.leftSignerPangkatNip, leftX, finalY + 4.5);
 
-    // Right Signer Name & NIP
+    // Nama Pejabat Kanan
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(settings.rightSignerName, rightX, finalY);
@@ -440,14 +443,13 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     doc.text(settings.rightSignerPangkatNip, rightX, finalY + 4.5);
   }
 
-  // Footnote at bottom of last page
+  // Catatan Kaki
   doc.setFont("helvetica", "italic");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
   const footnoteY = pageHeight - marginBottom;
   doc.text(register.notes || "*) Kejaksaan ditulis hanya di sampul depan.", marginX, footnoteY);
 
-  // Reset text color
   doc.setTextColor(0, 0, 0);
 
   return doc;
