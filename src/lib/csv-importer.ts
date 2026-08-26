@@ -170,25 +170,31 @@ function normalizeLetterNumber(value: string): string {
 }
 
 /**
- * Menemukan indeks header secara aman.
+ * Menemukan indeks header secara aman dengan prioritas kondisi.
  */
 function findColumnIndex(
   headers: string[],
   conditions: Array<(header: string) => boolean>,
 ): number {
-  return headers.findIndex((header) =>
-    conditions.some((condition) => condition(header)),
-  );
+  for (const condition of conditions) {
+    const idx = headers.findIndex((header) => condition(header));
+    if (idx !== -1) {
+      return idx;
+    }
+  }
+  return -1;
 }
 
 /**
  * Konfigurasi kolom standar berdasarkan struktur CSV:
  *
- * No | Jenis Surat | Sifat Surat | No Register Surat | Tanggal
+ * No | Satker | Jenis Surat | Sifat Surat | No Register Surat | Tanggal
  * | Nomor | Asal | Tujuan | Hal | Status
  *
  * Sangat penting:
  * - "No" adalah nomor urut tabel.
+ * - "Satker" adalah satuan kerja pengguna (BUKAN asal surat).
+ * - "Asal" adalah instansi pengirim surat / asal surat.
  * - "No Register Surat" adalah register angka, misalnya 484.
  * - "Nomor" adalah nomor surat lengkap, misalnya:
  *   R-484/N.1.17/Dsb.4/08/2026
@@ -204,12 +210,14 @@ function getStandardCsvColumnIndexes(headers: string[]) {
   const tanggalIdx = findColumnIndex(headers, [
     (header) => header === "tanggal",
     (header) => header === "tgl",
-    (header) => header.includes("tanggal surat"),
-    (header) => header.includes("tgl surat"),
+    (header) => header === "tanggal surat",
+    (header) => header === "tgl surat",
+    (header) => header.includes("tanggal"),
+    (header) => header.includes("tgl"),
   ]);
 
   /*
-   * Header harus tepat "nomor".
+   * Header harus tepat "nomor" atau "nomor surat".
    * Jangan gunakan "No Register Surat", karena nilai kolom itu hanya angka.
    */
   const nomorSuratIdx = findColumnIndex(headers, [
@@ -217,19 +225,29 @@ function getStandardCsvColumnIndexes(headers: string[]) {
     (header) => header === "nomor surat",
     (header) => header === "no surat",
     (header) => header === "no. surat",
+    (header) => header === "no_surat",
   ]);
 
+  /*
+   * Header untuk asal surat (kolom "Satker" tidak dimasukkan sebagai asal).
+   */
   const asalIdx = findColumnIndex(headers, [
     (header) => header === "asal",
     (header) => header === "asal surat",
-    (header) => header.includes("pengirim"),
-    (header) => header.includes("satker"),
     (header) => header === "diterima dari",
+    (header) => header === "pengirim",
+    (header) => header === "asal / pengirim",
+    (header) => header === "dari",
+    (header) => header === "satker asal",
+    (header) => header === "satker pengirim",
+    (header) => header.includes("pengirim"),
   ]);
 
   const halIdx = findColumnIndex(headers, [
     (header) => header === "hal",
     (header) => header === "perihal",
+    (header) => header === "uraian",
+    (header) => header.includes("perihal"),
     (header) => header.includes("uraian"),
   ]);
 
@@ -314,7 +332,7 @@ export function transformCsvToRIn1(rows: string[][]): Array<{
         asal_surat: rawAsal.trim(),
         perihal: rawHal.trim(),
         tgl_isi_disposisi: isoDate,
-        tindak_lanjut: "DITINDAKLANJUTI",
+        tindak_lanjut: "DITINDAKLANJUTI DAN DIARSIPKAN",
         keterangan: "-",
       },
     });

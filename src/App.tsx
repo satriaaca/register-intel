@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AlertCircle, CheckCircle2, Loader2, LogOut } from "lucide-react";
 
 import { Navbar } from "./components/Navbar.js";
@@ -7,6 +7,7 @@ import { RegisterDocumentView } from "./components/RegisterDocumentView.js";
 import { OfficersManager } from "./components/OfficersManager.js";
 import { SettingsManager } from "./components/SettingsManager.js";
 import { StorageCodesModal } from "./components/StorageCodesModal.js";
+import { ArchiveManagerModal } from "./components/ArchiveManagerModal.js";
 import LoginGate from "./components/LoginGate.js";
 
 import {
@@ -45,6 +46,9 @@ export default function App() {
   const [entries, setEntries] = useState<RegisterEntryRow[]>([]);
   const [officers, setOfficers] = useState<Officer[]>([]);
 
+  // Client-side in-memory cache untuk entri register agar perpindahan register instan (0ms)
+  const entriesCacheRef = useRef<Map<string, RegisterEntryRow[]>>(new Map());
+
   const [settings, setSettings] = useState<AppSettings>(
     DEFAULT_SETTINGS as AppSettings,
   );
@@ -57,6 +61,7 @@ export default function App() {
    * untuk semua register.
    */
   const [isStorageCodesOpen, setIsStorageCodesOpen] = useState(false);
+  const [isArchiveManagerOpen, setIsArchiveManagerOpen] = useState(false);
 
   const [notification, setNotification] = useState<{
     message: string;
@@ -118,7 +123,12 @@ export default function App() {
     }
   };
 
-  const fetchEntries = async (code: string) => {
+  const fetchEntries = async (code: string, forceFresh = false) => {
+    const cached = entriesCacheRef.current.get(code.toLowerCase());
+    if (cached && !forceFresh) {
+      setEntries(cached);
+    }
+
     try {
       const response = await authFetch(`/api/registers/${code}/entries`);
 
@@ -127,10 +137,15 @@ export default function App() {
       }
 
       const data = await response.json();
-      setEntries(data);
+      if (Array.isArray(data)) {
+        setEntries(data);
+        entriesCacheRef.current.set(code.toLowerCase(), data);
+      }
     } catch (error) {
       console.error(`Error loading entries for ${code}:`, error);
-      showNotification("Gagal memuat isi register.", "error");
+      if (!cached) {
+        showNotification("Gagal memuat isi register.", "error");
+      }
     }
   };
 
@@ -273,7 +288,8 @@ export default function App() {
 
     showNotification("Data baris register berhasil disimpan ke database.");
 
-    await fetchEntries(selectedCode);
+    entriesCacheRef.current.delete(selectedCode.toLowerCase());
+    await fetchEntries(selectedCode, true);
 
     const registerResponse = await authFetch("/api/registers");
     const registerData = await registerResponse.json();
@@ -295,6 +311,7 @@ export default function App() {
       throw new Error("Gagal menghapus baris data register.");
     }
 
+    entriesCacheRef.current.delete(selectedCode.toLowerCase());
     setEntries((previous) => previous.filter((entry) => entry.id !== id));
 
     showNotification("Baris data register berhasil dihapus.");
@@ -338,6 +355,13 @@ export default function App() {
   const totalEntriesCount = registers.reduce(
     (total, register) => total + (register.entryCount || 0),
     0,
+  );
+
+  // Akses menu backup, arsip, dan restore khusus hanya untuk akun hijau.kn.tabanan@gmail
+  const isArchiveSuperAdmin = Boolean(
+    currentUser?.email &&
+    (currentUser.email.toLowerCase().trim() === "hijau.kn.tabanan@gmail.com" ||
+     currentUser.email.toLowerCase().trim().startsWith("hijau.kn.tabanan@gmail"))
   );
 
   if (authLoading) {
@@ -385,6 +409,7 @@ export default function App() {
         onSeedSample={handleSeedSample}
         isSeeding={isSeeding}
         onManageStorageCodes={() => setIsStorageCodesOpen(true)}
+        onOpenArchiveManager={isArchiveSuperAdmin ? () => setIsArchiveManagerOpen(true) : undefined}
       />
 
       {notification && (
@@ -449,6 +474,8 @@ export default function App() {
               <SettingsManager
                 settings={settings}
                 onUpdateSettings={handleUpdateSettings}
+                onOpenArchiveManager={isArchiveSuperAdmin ? () => setIsArchiveManagerOpen(true) : undefined}
+                canManageArchive={isArchiveSuperAdmin}
               />
             )}
           </>
@@ -468,11 +495,23 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modal global, dapat dibuka dari tombol Navbar. */}
+      {/* Modal global kode penyimpanan */}
       {isStorageCodesOpen && (
         <StorageCodesModal
           isOpen={isStorageCodesOpen}
           onClose={() => setIsStorageCodesOpen(false)}
+        />
+      )}
+
+      {/* Modal manajemen kapasitas database & arsip 3 tahun (Khusus hijau.kn.tabanan@gmail) */}
+      {isArchiveManagerOpen && isArchiveSuperAdmin && (
+        <ArchiveManagerModal
+          isOpen={isArchiveManagerOpen}
+          onClose={() => setIsArchiveManagerOpen(false)}
+          onDataChanged={() => {
+            void fetchData();
+            if (selectedCode) void fetchEntries(selectedCode);
+          }}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 import { db, createPool } from "./index.js";
 import { officers, registerEntries, registers, settings, storageCodes, registerLocks } from "./schema.js";
 import { eq, desc, asc, and } from "drizzle-orm";
-import { Officer, AppSettings, StorageCodeMapping, RegisterLock } from "../types.js";
+import { Officer, AppSettings, StorageCodeMapping, RegisterLock, ArchiveYearStats, DatabaseArchiveStats, ArchivePackage } from "../types.js";
 import { DEFAULT_SETTINGS, INITIAL_OFFICERS, REGISTER_DEFINITIONS } from "../lib/constants.js";
 
 export async function ensureTablesExist(): Promise<void> {
@@ -781,3 +781,288 @@ export async function unlockRegister(
     throw new Error(`Failed to unlock register: ${error}`);
   }
 }
+
+// ----------------- Database Archiving & Retention (3-Year Rolling Policy) -----------------
+
+export function extractYearFromEntry(entry: {
+  tgl?: string | null;
+  dataJson?: string | null;
+  createdAt?: Date | null;
+}): number {
+  if (entry.tgl) {
+    const match = String(entry.tgl).match(/\b(19\d\d|20\d\d)\b/);
+    if (match) return parseInt(match[1], 10);
+  }
+  if (entry.dataJson) {
+    try {
+      const data = typeof entry.dataJson === "string" ? JSON.parse(entry.dataJson) : entry.dataJson;
+      const dateKeys = [
+        "tgl",
+        "tanggal",
+        "tgl_terima",
+        "tgl_surat",
+        "tgl_diterima",
+        "tgl_dikirim",
+        "tgl_lapinhar",
+        "tgl_lapinsus",
+        "tgl_lapintel",
+        "tgl_prodin",
+        "tgl_kegiatan",
+        "tgl_operasi",
+        "tgl_lid",
+        "tgl_pam",
+        "tgl_gal",
+        "tgl_surat_tugas",
+        "tgl_pemantauan",
+        "tgl_permohonan",
+        "tgl_mulai",
+        "tgl_selesai",
+        "waktu_kejadian",
+        "pemaparan_tanggal",
+        "waktu_lapor",
+      ];
+      for (const key of dateKeys) {
+        if (data[key]) {
+          const match = String(data[key]).match(/\b(19\d\d|20\d\d)\b/);
+          if (match) return parseInt(match[1], 10);
+        }
+      }
+      for (const val of Object.values(data)) {
+        if (typeof val === "string") {
+          const match = val.match(/\b(19\d\d|20\d\d)\b/);
+          if (match) return parseInt(match[1], 10);
+        }
+      }
+    } catch (e) {}
+  }
+  if (entry.createdAt) {
+    return new Date(entry.createdAt).getFullYear();
+  }
+  return 2026;
+}
+
+export function extractYearFromPeriodKey(periodKey: string): number {
+  const match = String(periodKey).match(/\b(19\d\d|20\d\d)\b/);
+  return match ? parseInt(match[1], 10) : 2026;
+}
+
+export async function getDatabaseArchiveStats(): Promise<DatabaseArchiveStats> {
+  try {
+    const [allEntries, allLocks, currentSettings] = await Promise.all([
+      db.select().from(registerEntries),
+      db.select().from(registerLocks),
+      getSettings(),
+    ]);
+
+    const currentYear = new Date().getFullYear(); // e.g. 2026
+    const retentionYears = [currentYear - 2, currentYear - 1, currentYear]; // [2024, 2025, 2026]
+
+    const yearStatsMap: Record<
+      number,
+      { entryCount: number; lockCount: number; estimatedBytes: number }
+    > = {};
+
+    // Initialize configured available years or standard years
+    const defaultYears = currentSettings.availableYears || [2023, 2024, 2025, 2026, 2027];
+    for (const y of defaultYears) {
+      yearStatsMap[y] = { entryCount: 0, lockCount: 0, estimatedBytes: 0 };
+    }
+
+    let totalEstimatedBytes = 0;
+
+    for (const entry of allEntries) {
+      const year = extractYearFromEntry(entry);
+      if (!yearStatsMap[year]) {
+        yearStatsMap[year] = { entryCount: 0, lockCount: 0, estimatedBytes: 0 };
+      }
+      const entryBytes =
+        (entry.dataJson?.length || 0) +
+        (entry.tgl?.length || 0) +
+        (entry.registerCode?.length || 0) +
+        64; // row overhead
+
+      yearStatsMap[year].entryCount += 1;
+      yearStatsMap[year].estimatedBytes += entryBytes;
+      totalEstimatedBytes += entryBytes;
+    }
+
+    for (const lock of allLocks) {
+      const year = extractYearFromPeriodKey(lock.periodKey);
+      if (!yearStatsMap[year]) {
+        yearStatsMap[year] = { entryCount: 0, lockCount: 0, estimatedBytes: 0 };
+      }
+      const lockBytes = 256;
+      yearStatsMap[year].lockCount += 1;
+      yearStatsMap[year].estimatedBytes += lockBytes;
+      totalEstimatedBytes += lockBytes;
+    }
+
+    const yearsList: ArchiveYearStats[] = Object.keys(yearStatsMap)
+      .map(Number)
+      .sort((a, b) => b - a)
+      .map((year) => ({
+        year,
+        entryCount: yearStatsMap[year].entryCount,
+        lockCount: yearStatsMap[year].lockCount,
+        estimatedBytes: yearStatsMap[year].estimatedBytes,
+        isRetentionActive: retentionYears.includes(year) || year > currentYear,
+      }));
+
+    return {
+      totalEntries: allEntries.length,
+      totalLocks: allLocks.length,
+      totalEstimatedBytes,
+      currentYear,
+      retentionYears,
+      years: yearsList,
+    };
+  } catch (error) {
+    console.error("Failed to get database archive stats:", error);
+    throw new Error("Failed to get database archive stats", { cause: error });
+  }
+}
+
+export async function exportYearArchive(
+  year: number,
+  exportedBy: string = "Admin Intelijen"
+): Promise<ArchivePackage> {
+  try {
+    const [allEntries, allLocks, currentSettings] = await Promise.all([
+      db.select().from(registerEntries),
+      db.select().from(registerLocks),
+      getSettings(),
+    ]);
+
+    const matchingEntries = allEntries.filter((e) => extractYearFromEntry(e) === year);
+    const matchingLocks = allLocks.filter((l) => extractYearFromPeriodKey(l.periodKey) === year);
+
+    const formattedEntries = matchingEntries.map((e) => {
+      let parsed = {};
+      try {
+        parsed = JSON.parse(e.dataJson);
+      } catch (err) {
+        parsed = {};
+      }
+      return {
+        registerCode: e.registerCode,
+        nomorUrut: e.nomorUrut,
+        tgl: e.tgl,
+        waktu: e.waktu,
+        data: parsed,
+      };
+    });
+
+    const formattedLocks = matchingLocks.map((l) => ({
+      registerCode: l.registerCode,
+      periodKey: l.periodKey,
+      isLocked: l.isLocked === 1,
+      leftSignerTitle: l.leftSignerTitle || undefined,
+      leftSignerName: l.leftSignerName || undefined,
+      leftSignerPangkatNip: l.leftSignerPangkatNip || undefined,
+      rightSignerTitle: l.rightSignerTitle || undefined,
+      rightSignerName: l.rightSignerName || undefined,
+      rightSignerPangkatNip: l.rightSignerPangkatNip || undefined,
+      signatureAlignment: (l.signatureAlignment as "split" | "center") || "split",
+      tempatDokumen: l.tempatDokumen || undefined,
+      closingDate: l.closingDate || undefined,
+      lockedBy: l.lockedBy || undefined,
+      lockedAt: l.lockedAt,
+      updatedAt: l.updatedAt,
+    }));
+
+    return {
+      version: "1.0",
+      app: `AMERTA - ${currentSettings.kejaksaanName || "Kejaksaan Negeri Tabanan"}`,
+      year,
+      exportedAt: new Date().toISOString(),
+      exportedBy,
+      totalEntries: formattedEntries.length,
+      totalLocks: formattedLocks.length,
+      entries: formattedEntries,
+      locks: formattedLocks,
+    };
+  } catch (error) {
+    console.error(`Failed to export archive for year ${year}:`, error);
+    throw new Error(`Failed to export archive for year ${year}`, { cause: error });
+  }
+}
+
+export async function purgeYearData(
+  year: number
+): Promise<{ deletedEntriesCount: number; deletedLocksCount: number }> {
+  try {
+    const [allEntries, allLocks] = await Promise.all([
+      db.select().from(registerEntries),
+      db.select().from(registerLocks),
+    ]);
+
+    const entryIdsToDelete = allEntries
+      .filter((e) => extractYearFromEntry(e) === year)
+      .map((e) => e.id);
+
+    const lockIdsToDelete = allLocks
+      .filter((l) => extractYearFromPeriodKey(l.periodKey) === year)
+      .map((l) => l.id);
+
+    for (const id of entryIdsToDelete) {
+      await db.delete(registerEntries).where(eq(registerEntries.id, id));
+    }
+
+    for (const id of lockIdsToDelete) {
+      await db.delete(registerLocks).where(eq(registerLocks.id, id));
+    }
+
+    return {
+      deletedEntriesCount: entryIdsToDelete.length,
+      deletedLocksCount: lockIdsToDelete.length,
+    };
+  } catch (error) {
+    console.error(`Failed to purge data for year ${year}:`, error);
+    throw new Error(`Failed to purge data for year ${year}`, { cause: error });
+  }
+}
+
+export async function restoreArchivePackage(
+  pkg: ArchivePackage,
+  mode: "replace" | "merge" = "replace"
+): Promise<{ restoredEntries: number; restoredLocks: number }> {
+  try {
+    if (!pkg || !pkg.year || !Array.isArray(pkg.entries)) {
+      throw new Error("Format berkas arsip tidak valid atau rusak.");
+    }
+
+    if (mode === "replace") {
+      await purgeYearData(pkg.year);
+    }
+
+    let restoredEntries = 0;
+    for (const entry of pkg.entries) {
+      const jsonStr = JSON.stringify(entry.data || {});
+      await db.insert(registerEntries).values({
+        registerCode: entry.registerCode,
+        nomorUrut: entry.nomorUrut || 1,
+        tgl: entry.tgl || null,
+        waktu: entry.waktu || null,
+        dataJson: jsonStr,
+      });
+      restoredEntries += 1;
+    }
+
+    let restoredLocks = 0;
+    if (Array.isArray(pkg.locks)) {
+      for (const lock of pkg.locks) {
+        await saveRegisterLock(lock);
+        restoredLocks += 1;
+      }
+    }
+
+    return {
+      restoredEntries,
+      restoredLocks,
+    };
+  } catch (error) {
+    console.error("Failed to restore archive package:", error);
+    throw new Error(`Failed to restore archive package: ${error}`, { cause: error });
+  }
+}
+

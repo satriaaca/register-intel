@@ -1,16 +1,20 @@
 import React, { useState } from "react";
 import { AppSettings } from "../types.js";
-import { Settings, Save, Check, Building, PenTool, Calendar, Plus, Trash2, AlignCenter, AlignJustify } from "lucide-react";
+import { Settings, Save, Check, Building, PenTool, Calendar, Plus, Trash2, AlignCenter, AlignJustify, Database, HardDrive, Download, Upload } from "lucide-react";
 import { MONTH_NAMES_ID, getDefaultClosingDate, formatDateIndonesian } from "../lib/date-utils.js";
 
 interface SettingsManagerProps {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => Promise<void>;
+  onOpenArchiveManager?: () => void;
+  canManageArchive?: boolean;
 }
 
 export const SettingsManager: React.FC<SettingsManagerProps> = ({
   settings,
   onUpdateSettings,
+  onOpenArchiveManager,
+  canManageArchive = false,
 }) => {
   const [formData, setFormData] = useState<AppSettings>({ ...settings });
   const [availableYears, setAvailableYears] = useState<number[]>(
@@ -485,6 +489,65 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Database Capacity & Archive Management (3-Year Retention) - Khusus hijau.kn.tabanan@gmail */}
+        {canManageArchive && (
+          <div className="bg-white rounded-lg shadow-2xs border border-emerald-200/80 p-4 space-y-3 bg-gradient-to-br from-white to-emerald-50/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-2">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase">
+                  <Database className="w-3.5 h-3.5 text-emerald-700" />
+                  Kapasitas Database & Manajemen Arsip (Retensi 3 Tahun)
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Mekanisme pengarsipan data tahun lama ke Google Drive / JSON dan pemulihan data on-demand untuk menjaga batas resource Neon Database.
+                </p>
+              </div>
+              {onOpenArchiveManager && (
+                <button
+                  type="button"
+                  onClick={onOpenArchiveManager}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer self-start sm:self-auto"
+                >
+                  <HardDrive className="w-3.5 h-3.5" />
+                  <span>Buka Manajemen Arsip & Restore</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
+                <span className="text-[10px] text-slate-500 font-medium block">Kebijakan Retensi Aktif</span>
+                <span className="text-xs font-bold text-emerald-900 block mt-0.5">
+                  3 Tahun Terakhir (Aktif di DB)
+                </span>
+                <p className="text-[10px] text-slate-500 mt-1 leading-normal">
+                  Data &gt; 3 tahun dapat diekspor ke format JSON dan dikosongkan dari DB.
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
+                <span className="text-[10px] text-slate-500 font-medium block">Pencadangan Google Drive</span>
+                <span className="text-xs font-bold text-slate-800 block mt-0.5">
+                  File Cadangan Mandiri (.json)
+                </span>
+                <p className="text-[10px] text-slate-500 mt-1 leading-normal">
+                  Menyimpan seluruh data entri R.IN.1–R.IN.23 beserta kunci penandatangan.
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
+                <span className="text-[10px] text-slate-500 font-medium block">Pemulihan Data (Restore)</span>
+                <span className="text-xs font-bold text-slate-800 block mt-0.5">
+                  On-Demand Restore Kapan Saja
+                </span>
+                <p className="text-[10px] text-slate-500 mt-1 leading-normal">
+                  Bila diperlukan audit tahun lama, unggah kembali file JSON untuk me-restore data seketika.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Submit Bar */}
         <div className="flex items-center justify-end">

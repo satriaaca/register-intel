@@ -109,3 +109,27 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
   next();
 }
+
+/**
+ * Memeriksa apakah pengguna memiliki kewenangan khusus manajemen arsip & restore.
+ * Hanya email hijau.kn.tabanan@gmail.com yang berwenang.
+ */
+export function isArchiveSuperAdmin(email?: string): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return normalized === "hijau.kn.tabanan@gmail.com" || normalized.startsWith("hijau.kn.tabanan@gmail");
+}
+
+/**
+ * Middleware untuk membatasi endpoint backup, purge, dan restore database
+ * khusus hanya untuk email hijau.kn.tabanan@gmail.com.
+ */
+export function requireArchiveSuperAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!isArchiveSuperAdmin(req.user?.email)) {
+    return res.status(403).json({
+      error: "Akses ditolak: Menu dan fitur Pencadangan (Backup), Pengosongan (Purge), serta Pemulihan (Restore) hanya diizinkan untuk akun hijau.kn.tabanan@gmail.com.",
+    });
+  }
+  next();
+}
+

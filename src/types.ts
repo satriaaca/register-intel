@@ -149,6 +149,41 @@ export interface AppUser {
 
 export type User = AppUser;
 
+export interface ArchiveYearStats {
+  year: number;
+  entryCount: number;
+  lockCount: number;
+  estimatedBytes: number;
+  isRetentionActive: boolean;
+}
+
+export interface DatabaseArchiveStats {
+  totalEntries: number;
+  totalLocks: number;
+  totalEstimatedBytes: number;
+  currentYear: number;
+  retentionYears: number[];
+  years: ArchiveYearStats[];
+}
+
+export interface ArchivePackage {
+  version: string;
+  app: string;
+  year: number;
+  exportedAt: string;
+  exportedBy?: string;
+  totalEntries: number;
+  totalLocks: number;
+  entries: Array<{
+    registerCode: string;
+    nomorUrut: number;
+    tgl?: string | null;
+    waktu?: string | null;
+    data: Record<string, any>;
+  }>;
+  locks: RegisterLock[];
+}
+
 export interface SsoPresetProfile {
   id: string;
   name: string;
@@ -161,4 +196,5 @@ export interface SsoPresetProfile {
   description: string;
   avatarColor: string;
 }
+
 

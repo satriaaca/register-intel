@@ -22,6 +22,11 @@ interface NavbarProps {
    * Membuka modal manajemen kode penyimpanan global.
    */
   onManageStorageCodes?: () => void;
+
+  /**
+   * Membuka modal manajemen kapasitas database & arsip 3 tahun.
+   */
+  onOpenArchiveManager?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSeedSample,
   isSeeding,
   onManageStorageCodes,
+  onOpenArchiveManager,
 }) => {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur sm:px-5">
@@ -60,11 +66,25 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800 md:flex">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            <Database className="h-3 w-3" />
-            <span className="font-mono">Database Aktif</span>
-          </div>
+          {onOpenArchiveManager ? (
+            <button
+              type="button"
+              onClick={onOpenArchiveManager}
+              title="Kapasitas Database & Manajemen Arsip 3 Tahun"
+              className="hidden cursor-pointer items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800 transition hover:bg-emerald-100 hover:border-emerald-300 md:flex"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              <Database className="h-3 w-3" />
+              <span className="font-mono">Database Neon</span>
+              <span className="rounded bg-emerald-200/70 px-1 py-0.2 text-[8px] font-bold">Arsip</span>
+            </button>
+          ) : (
+            <div className="hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800 md:flex">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              <Database className="h-3 w-3" />
+              <span className="font-mono">Database Aktif</span>
+            </div>
+          )}
 
           <nav
             aria-label="Navigasi utama"
