@@ -1,7 +1,7 @@
 import { db, createPool } from "./index.js";
-import { officers, registerEntries, registers, settings, storageCodes } from "./schema.js";
-import { eq, desc, asc } from "drizzle-orm";
-import { Officer, AppSettings, StorageCodeMapping } from "../types.js";
+import { officers, registerEntries, registers, settings, storageCodes, registerLocks } from "./schema.js";
+import { eq, desc, asc, and } from "drizzle-orm";
+import { Officer, AppSettings, StorageCodeMapping, RegisterLock } from "../types.js";
 import { DEFAULT_SETTINGS, INITIAL_OFFICERS, REGISTER_DEFINITIONS } from "../lib/constants.js";
 
 export async function ensureTablesExist(): Promise<void> {
@@ -69,6 +69,26 @@ export async function ensureTablesExist(): Promise<void> {
         keterangan TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS register_locks (
+        id SERIAL PRIMARY KEY,
+        register_code TEXT NOT NULL,
+        period_key TEXT NOT NULL,
+        is_locked INTEGER NOT NULL DEFAULT 1,
+        left_signer_title TEXT,
+        left_signer_name TEXT,
+        left_signer_pangkat_nip TEXT,
+        right_signer_title TEXT,
+        right_signer_name TEXT,
+        right_signer_pangkat_nip TEXT,
+        signature_alignment TEXT DEFAULT 'split',
+        tempat_dokumen TEXT,
+        closing_date TEXT,
+        locked_by TEXT,
+        locked_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(register_code, period_key)
       );
     `);
     console.log("Database tables verified/initialized successfully.");
@@ -600,5 +620,164 @@ export async function seedStorageCodesIfEmpty(): Promise<void> {
     }
   } catch (err) {
     console.warn("Could not seed storage codes:", err);
+  }
+}
+
+// ----------------- Register Lock Queries -----------------
+
+export async function getRegisterLocks(registerCode?: string): Promise<RegisterLock[]> {
+  try {
+    let rows;
+    if (registerCode) {
+      rows = await db
+        .select()
+        .from(registerLocks)
+        .where(eq(registerLocks.registerCode, registerCode));
+    } else {
+      rows = await db.select().from(registerLocks);
+    }
+
+    return rows.map((r) => ({
+      id: r.id,
+      registerCode: r.registerCode,
+      periodKey: r.periodKey,
+      isLocked: r.isLocked === 1,
+      leftSignerTitle: r.leftSignerTitle || undefined,
+      leftSignerName: r.leftSignerName || undefined,
+      leftSignerPangkatNip: r.leftSignerPangkatNip || undefined,
+      rightSignerTitle: r.rightSignerTitle || undefined,
+      rightSignerName: r.rightSignerName || undefined,
+      rightSignerPangkatNip: r.rightSignerPangkatNip || undefined,
+      signatureAlignment: (r.signatureAlignment as "split" | "center") || "split",
+      tempatDokumen: r.tempatDokumen || undefined,
+      closingDate: r.closingDate || undefined,
+      lockedBy: r.lockedBy || undefined,
+      lockedAt: r.lockedAt,
+      updatedAt: r.updatedAt,
+    }));
+  } catch (error) {
+    console.error("Failed to get register locks:", error);
+    return [];
+  }
+}
+
+export async function getRegisterLock(
+  registerCode: string,
+  periodKey: string,
+): Promise<RegisterLock | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(registerLocks)
+      .where(
+        and(
+          eq(registerLocks.registerCode, registerCode),
+          eq(registerLocks.periodKey, periodKey),
+        ),
+      )
+      .limit(1);
+
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      id: r.id,
+      registerCode: r.registerCode,
+      periodKey: r.periodKey,
+      isLocked: r.isLocked === 1,
+      leftSignerTitle: r.leftSignerTitle || undefined,
+      leftSignerName: r.leftSignerName || undefined,
+      leftSignerPangkatNip: r.leftSignerPangkatNip || undefined,
+      rightSignerTitle: r.rightSignerTitle || undefined,
+      rightSignerName: r.rightSignerName || undefined,
+      rightSignerPangkatNip: r.rightSignerPangkatNip || undefined,
+      signatureAlignment: (r.signatureAlignment as "split" | "center") || "split",
+      tempatDokumen: r.tempatDokumen || undefined,
+      closingDate: r.closingDate || undefined,
+      lockedBy: r.lockedBy || undefined,
+      lockedAt: r.lockedAt,
+      updatedAt: r.updatedAt,
+    };
+  } catch (error) {
+    console.error("Failed to get register lock:", error);
+    return null;
+  }
+}
+
+export async function saveRegisterLock(data: RegisterLock): Promise<RegisterLock> {
+  try {
+    const existing = await db
+      .select()
+      .from(registerLocks)
+      .where(
+        and(
+          eq(registerLocks.registerCode, data.registerCode),
+          eq(registerLocks.periodKey, data.periodKey),
+        ),
+      )
+      .limit(1);
+
+    const values = {
+      registerCode: data.registerCode,
+      periodKey: data.periodKey,
+      isLocked: data.isLocked ? 1 : 0,
+      leftSignerTitle: data.leftSignerTitle || null,
+      leftSignerName: data.leftSignerName || null,
+      leftSignerPangkatNip: data.leftSignerPangkatNip || null,
+      rightSignerTitle: data.rightSignerTitle || null,
+      rightSignerName: data.rightSignerName || null,
+      rightSignerPangkatNip: data.rightSignerPangkatNip || null,
+      signatureAlignment: data.signatureAlignment || "split",
+      tempatDokumen: data.tempatDokumen || null,
+      closingDate: data.closingDate || null,
+      lockedBy: data.lockedBy || null,
+      updatedAt: new Date(),
+    };
+
+    if (existing.length > 0) {
+      await db
+        .update(registerLocks)
+        .set(values)
+        .where(eq(registerLocks.id, existing[0].id));
+      return {
+        ...data,
+        id: existing[0].id,
+      };
+    } else {
+      const res = await db
+        .insert(registerLocks)
+        .values({
+          ...values,
+          lockedAt: new Date(),
+        })
+        .returning();
+      return {
+        ...data,
+        id: res[0].id,
+        lockedAt: res[0].lockedAt,
+      };
+    }
+  } catch (error) {
+    console.error("Failed to save register lock:", error);
+    throw new Error(`Failed to save register lock: ${error}`);
+  }
+}
+
+export async function unlockRegister(
+  registerCode: string,
+  periodKey: string,
+): Promise<boolean> {
+  try {
+    await db
+      .delete(registerLocks)
+      .where(
+        and(
+          eq(registerLocks.registerCode, registerCode),
+          eq(registerLocks.periodKey, periodKey),
+        ),
+      );
+    return true;
+  } catch (error) {
+    console.error("Failed to unlock register:", error);
+    throw new Error(`Failed to unlock register: ${error}`);
   }
 }

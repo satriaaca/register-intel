@@ -8,9 +8,9 @@ import {
     type User as FirebaseUser,
 } from "firebase/auth";
 
-import firebaseConfig from "../../firebase-applet-config.json";
-import type { AppUser } from "../types";
-import { verifyEmailWhitelist } from "./emailWhitelistService";
+import firebaseConfig from "../../firebase-applet-config.json" with { type: "json" };
+import type { AppUser } from "../types.js";
+import { verifyEmailWhitelist } from "./emailWhitelistService.js";
 
 // Inisialisasi Firebase hanya satu kali.
 export const app = getApps().length === 0

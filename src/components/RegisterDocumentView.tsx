@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   AlertCircle,
   Calendar,
@@ -13,6 +13,11 @@ import {
   Save,
   Trash2,
   Upload,
+  Lock,
+  Unlock,
+  Filter,
+  Layers,
+  ShieldCheck,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -21,6 +26,9 @@ import {
   Officer,
   RegisterDefinition,
   RegisterEntryRow,
+  RegisterLock,
+  Rin3CategoryType,
+  RIN3_CATEGORIES,
 } from "../types.js";
 
 import { generateRegisterPdf } from "../lib/pdf-generator.js";
@@ -34,12 +42,19 @@ import {
   getClosingDateForPeriod,
 } from "../lib/date-utils.js";
 
+import {
+  detectRin3Category,
+  filterRin3EntriesByCategory,
+  countRin3EntriesByCategory,
+} from "../lib/rin3-category.js";
+
 import esignImage from "../assets/esign.png";
 
-import { EntryFormModal } from "./EntryFormModal.tsx";
-import { ImportCsvModal } from "./ImportCsvModal.tsx";
-import { PdfPreviewModal } from "./PdfPreviewModal.tsx";
-import { StorageCodesModal } from "./StorageCodesModal.tsx";
+import { EntryFormModal } from "./EntryFormModal.js";
+import { ImportCsvModal } from "./ImportCsvModal.js";
+import { PdfPreviewModal } from "./PdfPreviewModal.js";
+import { StorageCodesModal } from "./StorageCodesModal.js";
+import { LockRegisterModal } from "./LockRegisterModal.js";
 
 interface RegisterDocumentViewProps {
   register: RegisterDefinition;
@@ -99,6 +114,14 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState<number | "all">(1);
 
+  // Filter Kategori Khusus R.IN.3
+  const [rin3CategoryFilter, setRin3CategoryFilter] = useState<Rin3CategoryType | "all">("all");
+
+  // State Fitur Lock Register (Kunci Penandatangan)
+  const [currentLock, setCurrentLock] = useState<RegisterLock | null>(null);
+  const [isLockModalOpen, setIsLockModalOpen] = useState(false);
+  const [isLoadingLock, setIsLoadingLock] = useState(false);
+
   const [isEditingClosingDate, setIsEditingClosingDate] = useState(false);
   const [tempClosingDate, setTempClosingDate] = useState("");
   const [isSavingClosingDate, setIsSavingClosingDate] = useState(false);
@@ -113,6 +136,35 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   const [storageCodeMap, setStorageCodeMap] = useState<Map<string, string>>(
     new Map(),
   );
+
+  const currentPeriodKey =
+    typeof selectedMonth === "number"
+      ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`
+      : `${selectedYear}-all`;
+
+  const loadRegisterLock = useCallback(async () => {
+    try {
+      setIsLoadingLock(true);
+      const res = await authFetch(
+        `/api/register-locks?registerCode=${encodeURIComponent(register.code)}&periodKey=${encodeURIComponent(currentPeriodKey)}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentLock(data || null);
+      } else {
+        setCurrentLock(null);
+      }
+    } catch (e) {
+      console.error("Failed to load register lock:", e);
+      setCurrentLock(null);
+    } finally {
+      setIsLoadingLock(false);
+    }
+  }, [register.code, currentPeriodKey]);
+
+  useEffect(() => {
+    void loadRegisterLock();
+  }, [loadRegisterLock]);
 
   useEffect(() => {
     setCurrentOrientation(register.orientation || "landscape");
@@ -157,9 +209,11 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   }, [register.code, isStorageCodesOpen]);
 
   const activeClosingDate =
-    typeof selectedMonth === "number"
-      ? getClosingDateForPeriod(settings, selectedYear, selectedMonth)
-      : settings.tanggalDokumen || new Date().toISOString().split("T")[0];
+    (currentLock?.isLocked && currentLock.closingDate)
+      ? currentLock.closingDate
+      : typeof selectedMonth === "number"
+        ? getClosingDateForPeriod(settings, selectedYear, selectedMonth)
+        : settings.tanggalDokumen || new Date().toISOString().split("T")[0];
 
   const activeClosingDateFormatted = formatDateIndonesian(
     activeClosingDate,
@@ -171,11 +225,65 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
     true,
   );
 
-  const filteredEntries = filterEntriesByPeriod(
+  // Filter berdasarkan periode Tahun & Bulan
+  const periodEntries = filterEntriesByPeriod(
     entries,
     selectedYear,
     selectedMonth,
   );
+
+  // Filter khusus kategori pada R.IN.3
+  const filteredEntries =
+    register.code === "R.IN.3"
+      ? filterRin3EntriesByCategory(periodEntries, rin3CategoryFilter)
+      : periodEntries;
+
+  // Hitung jumlah per kategori untuk R.IN.3
+  const rin3CategoryCounts =
+    register.code === "R.IN.3"
+      ? countRin3EntriesByCategory(periodEntries)
+      : { all: periodEntries.length };
+
+  // Data Penandatangan Efektif (Snapshot jika terkunci, atau global jika tidak)
+  const effectiveLeftSignerTitle =
+    currentLock?.isLocked && currentLock.leftSignerTitle
+      ? currentLock.leftSignerTitle
+      : settings.leftSignerTitle;
+
+  const effectiveLeftSignerName =
+    currentLock?.isLocked && currentLock.leftSignerName
+      ? currentLock.leftSignerName
+      : settings.leftSignerName;
+
+  const effectiveLeftSignerPangkatNip =
+    currentLock?.isLocked && currentLock.leftSignerPangkatNip
+      ? currentLock.leftSignerPangkatNip
+      : settings.leftSignerPangkatNip;
+
+  const effectiveRightSignerTitle =
+    currentLock?.isLocked && currentLock.rightSignerTitle
+      ? currentLock.rightSignerTitle
+      : settings.rightSignerTitle;
+
+  const effectiveRightSignerName =
+    currentLock?.isLocked && currentLock.rightSignerName
+      ? currentLock.rightSignerName
+      : settings.rightSignerName;
+
+  const effectiveRightSignerPangkatNip =
+    currentLock?.isLocked && currentLock.rightSignerPangkatNip
+      ? currentLock.rightSignerPangkatNip
+      : settings.rightSignerPangkatNip;
+
+  const effectiveSignatureAlignment =
+    currentLock?.isLocked && currentLock.signatureAlignment
+      ? currentLock.signatureAlignment
+      : settings.signatureAlignment || "split";
+
+  const effectiveTempatDokumen =
+    currentLock?.isLocked && currentLock.tempatDokumen
+      ? currentLock.tempatDokumen
+      : settings.tempatDokumen || "Tabanan";
 
   const officerMap = new Map<number, Officer>();
 
@@ -291,6 +399,11 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
       selectedMonth,
       customClosingDate: activeClosingDate,
       orientationOverride: currentOrientation,
+      lockSnapshot: currentLock,
+      categoryFilter:
+        register.code === "R.IN.3" && rin3CategoryFilter !== "all"
+          ? rin3CategoryFilter
+          : undefined,
     });
   };
 
@@ -302,7 +415,12 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         ? `_${MONTH_NAMES_ID[selectedMonth - 1]}_${selectedYear}`
         : `_${selectedYear}`;
 
-    const filename = `${register.code}${periodSlug}_${register.title
+    const catSlug =
+      register.code === "R.IN.3" && rin3CategoryFilter !== "all"
+        ? `_${rin3CategoryFilter.split(",")[0].replace(/\s+/g, "_").slice(0, 15)}`
+        : "";
+
+    const filename = `${register.code}${periodSlug}${catSlug}_${register.title
       .replace(/[\/\s,]+/g, "_")
       .slice(0, 35)}.pdf`;
 
@@ -592,6 +710,35 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
             </button>
           )}
 
+          {/* Tombol Kunci Register */}
+          <button
+            id="btn-lock-register-status"
+            type="button"
+            onClick={() => setIsLockModalOpen(true)}
+            title={
+              currentLock?.isLocked
+                ? "Register terkunci. Data penandatangan tidak akan berubah walaupun setting global diubah."
+                : "Kunci data penandatangan untuk periode ini agar tidak berubah bila setting di masa depan diganti."
+            }
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1.5 text-xs font-bold shadow-sm transition ${
+              currentLock?.isLocked
+                ? "border-amber-400 bg-amber-100/90 text-amber-950 hover:bg-amber-200"
+                : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+            }`}
+          >
+            {currentLock?.isLocked ? (
+              <>
+                <Lock className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                <span>Penandatangan Terkunci</span>
+              </>
+            ) : (
+              <>
+                <Unlock className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                <span>Kunci Register</span>
+              </>
+            )}
+          </button>
+
           <button
             id="btn-import-csv"
             type="button"
@@ -624,10 +771,86 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         </div>
       </div>
 
+      {/* Filter Kategori Khusus R.IN.3 */}
+      {register.code === "R.IN.3" && (
+        <div className="rounded-lg border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-3 shadow-xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/80 pb-1.5">
+            <div className="flex items-center gap-2 text-emerald-950">
+              <Filter className="h-4 w-4 text-emerald-700" />
+              <span className="text-xs font-bold uppercase tracking-wide">
+                Filter Bidang Intelijen (Khusus R.IN.3)
+              </span>
+            </div>
+            <span className="text-[11px] font-medium text-emerald-800">
+              Menampilkan {filteredEntries.length} dari {periodEntries.length} baris periode ini
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <button
+              type="button"
+              id="filter-rin3-all"
+              onClick={() => setRin3CategoryFilter("all")}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                rin3CategoryFilter === "all"
+                  ? "bg-slate-900 text-white shadow-xs font-bold"
+                  : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <span>Semua Bidang</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                  rin3CategoryFilter === "all" ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-800"
+                }`}
+              >
+                {rin3CategoryCounts["all"] || 0}
+              </span>
+            </button>
+
+            {RIN3_CATEGORIES.map((cat, idx) => {
+              const isSelected = rin3CategoryFilter === cat;
+              const count = rin3CategoryCounts[cat] || 0;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  id={`filter-rin3-cat-${idx}`}
+                  onClick={() => setRin3CategoryFilter(cat)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] transition cursor-pointer ${
+                    isSelected
+                      ? "bg-emerald-700 text-white shadow-xs font-bold"
+                      : "bg-white border border-emerald-300 text-emerald-900 hover:bg-emerald-100/70"
+                  }`}
+                >
+                  <span>{cat}</span>
+                  {count > 0 ? (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                        isSelected ? "bg-white text-emerald-900" : "bg-emerald-200 text-emerald-950"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] opacity-60">(0)</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-lg border border-slate-300 bg-white p-4 font-sans shadow-sm sm:p-6">
         <div className="relative mb-4 rounded-sm border border-slate-900 p-3">
-          <div className="absolute right-2.5 top-2 font-mono text-xs font-bold text-slate-800">
-            {register.code}
+          <div className="absolute right-2.5 top-2 flex items-center gap-1.5 font-mono text-xs font-bold text-slate-800">
+            {currentLock?.isLocked && (
+              <span className="inline-flex items-center gap-1 rounded bg-amber-200 border border-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-amber-950">
+                <Lock className="w-3 h-3 text-amber-800" />
+                Terkunci
+              </span>
+            )}
+            <span>{register.code}</span>
           </div>
 
           <div className="mb-1 text-left text-[11px] font-bold uppercase text-slate-900">
@@ -643,6 +866,15 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
               <p className="mt-0.5 text-[11px] font-semibold uppercase text-slate-700">
                 {register.subtitle}
               </p>
+            )}
+
+            {register.code === "R.IN.3" && rin3CategoryFilter !== "all" && (
+              <div className="mt-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-950 bg-emerald-100/90 px-3 py-0.5 rounded border border-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                  BIDANG: {rin3CategoryFilter}
+                </span>
+              </div>
             )}
 
             <p className="mt-1 text-[11px] font-bold uppercase text-emerald-800">
@@ -937,13 +1169,22 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
         )}
 
         <div className="mt-8 border-t border-slate-300 pt-4">
-          {settings.signatureAlignment === "center" ? (
+          {currentLock?.isLocked && (
+            <div className="mb-4 flex items-center justify-center gap-1.5 rounded border border-amber-300 bg-amber-50 py-1.5 px-3 text-xs font-semibold text-amber-950">
+              <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span>
+                Penandatangan Dokumen Terkunci (Snapshot Periode {currentPeriodLabel}) — Perubahan pada menu Pengaturan tidak akan mengubah penandatangan periode ini kecuali dibuka kuncinya.
+              </span>
+            </div>
+          )}
+
+          {effectiveSignatureAlignment === "center" ? (
             <div className="mx-auto grid max-w-2xl grid-cols-1 gap-8 text-center text-xs sm:grid-cols-2">
               <div className="flex flex-col items-center space-y-0.5">
                 <p className="text-[11px] text-slate-600">Mengetahui:</p>
 
                 <p className="text-xs font-bold uppercase text-slate-900">
-                  {settings.leftSignerTitle
+                  {effectiveLeftSignerTitle
                     .replace("Mengetahui:\n", "")
                     .replace("Mengetahui:", "")}
                 </p>
@@ -961,11 +1202,11 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <div className="flex items-end justify-center">
                   <div className="text-center">
                     <p className="text-xs font-bold text-slate-900 underline">
-                      {settings.leftSignerName}
+                      {effectiveLeftSignerName}
                     </p>
 
                     <p className="text-[10px] text-slate-600">
-                      {settings.leftSignerPangkatNip}
+                      {effectiveLeftSignerPangkatNip}
                     </p>
                   </div>
                 </div>
@@ -973,14 +1214,14 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
 
               <div className="flex flex-col items-center space-y-0.5">
                 <p className="text-[11px] text-slate-600">
-                  {settings.tempatDokumen},{" "}
+                  {effectiveTempatDokumen},{" "}
                   <strong className="font-semibold text-slate-900">
                     {activeClosingDateFormatted}
                   </strong>
                 </p>
 
                 <p className="text-xs font-bold uppercase text-slate-900">
-                  {settings.rightSignerTitle}
+                  {effectiveRightSignerTitle}
                 </p>
 
                 <img
@@ -992,11 +1233,11 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <div className="flex items-end justify-center">
                   <div className="text-center">
                     <p className="text-xs font-bold text-slate-900 underline">
-                      {settings.rightSignerName}
+                      {effectiveRightSignerName}
                     </p>
 
                     <p className="text-[10px] text-slate-600">
-                      {settings.rightSignerPangkatNip}
+                      {effectiveRightSignerPangkatNip}
                     </p>
                   </div>
                 </div>
@@ -1008,7 +1249,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <p className="text-[11px] text-slate-600">Mengetahui:</p>
 
                 <p className="text-xs font-bold uppercase text-slate-900">
-                  {settings.leftSignerTitle
+                  {effectiveLeftSignerTitle
                     .replace("Mengetahui:\n", "")
                     .replace("Mengetahui:", "")}
                 </p>
@@ -1022,11 +1263,11 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <div className="flex items-end">
                   <div className="w-full">
                     <p className="text-xs font-bold text-slate-900 underline">
-                      {settings.leftSignerName}
+                      {effectiveLeftSignerName}
                     </p>
 
                     <p className="text-[10px] text-slate-600">
-                      {settings.leftSignerPangkatNip}
+                      {effectiveLeftSignerPangkatNip}
                     </p>
                   </div>
                 </div>
@@ -1034,14 +1275,14 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
 
               <div className="w-full space-y-0.5 text-left sm:w-60 sm:text-right">
                 <p className="text-[11px] text-slate-600">
-                  {settings.tempatDokumen},{" "}
+                  {effectiveTempatDokumen},{" "}
                   <strong className="font-semibold text-slate-900">
                     {activeClosingDateFormatted}
                   </strong>
                 </p>
 
                 <p className="text-xs font-bold uppercase text-slate-900">
-                  {settings.rightSignerTitle}
+                  {effectiveRightSignerTitle}
                 </p>
 
                 <img
@@ -1053,11 +1294,11 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <div className="flex items-end justify-start sm:justify-end">
                   <div>
                     <p className="text-xs font-bold text-slate-900 underline">
-                      {settings.rightSignerName}
+                      {effectiveRightSignerName}
                     </p>
 
                     <p className="text-[10px] text-slate-600">
-                      {settings.rightSignerPangkatNip}
+                      {effectiveRightSignerPangkatNip}
                     </p>
                   </div>
                 </div>
@@ -1163,6 +1404,22 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
           onClose={() => setIsStorageCodesOpen(false)}
         />
       )}
+
+      <LockRegisterModal
+        isOpen={isLockModalOpen}
+        onClose={() => setIsLockModalOpen(false)}
+        register={register}
+        periodKey={currentPeriodKey}
+        periodLabel={currentPeriodLabel}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+        defaultClosingDate={activeClosingDate}
+        currentSettings={settings}
+        currentLock={currentLock}
+        onLockSaved={(updatedLock) => {
+          setCurrentLock(updatedLock);
+        }}
+      />
     </div>
   );
 };

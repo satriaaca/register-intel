@@ -88,23 +88,66 @@ export interface StorageCodeMapping {
   createdAt?: string | null;
 }
 
-export type UserRole = "admin" | "kasi_intel" | "operator" | "petugas";
+export interface RegisterLock {
+  id?: number;
+  registerCode: string;
+  periodKey: string; // e.g. "2026-08", "2026-all", "all"
+  isLocked: boolean;
+  leftSignerTitle?: string;
+  leftSignerName?: string;
+  leftSignerPangkatNip?: string;
+  rightSignerTitle?: string;
+  rightSignerName?: string;
+  rightSignerPangkatNip?: string;
+  signatureAlignment?: "split" | "center";
+  tempatDokumen?: string;
+  closingDate?: string;
+  lockedBy?: string;
+  lockedAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+}
 
-export interface User {
+export const RIN3_CATEGORIES = [
+  "IDEOLOGI, POLITIK, PERTAHANAN DAN KEAMANAN",
+  "SOSIAL BUDAYA DAN KEMASYARAKATAN",
+  "EKONOMI DAN KEUANGAN",
+  "PENGAMANAN PEMBANGUNAN STRATEGIS",
+  "TEKNOLOGI INFORMASI DAN PRODUKSI INTELIJEN",
+] as const;
+
+export type Rin3CategoryType = typeof RIN3_CATEGORIES[number];
+
+export type UserRole =
+  | "admin"
+  | "kasi_intel"
+  | "operator"
+  | "petugas"
+  | "Kasi Intelijen"
+  | "Jaksa Fungsional Intelijen"
+  | "Staf Intelijen"
+  | "Administrator";
+
+export interface AppUser {
   id?: number;
   uid: string;
   name: string;
   email: string;
+  username?: string;
   nip?: string;
   pangkat?: string;
   jabatan?: string;
   role: UserRole;
+  unit?: string;
   satker?: string;
   photoUrl?: string;
-  ssoProvider: "kejaksaan_sso" | "google" | "simkari" | "passkey";
+  photoURL?: string;
+  isLoggedIn?: boolean;
+  ssoProvider?: "kejaksaan_sso" | "google" | "simkari" | "passkey";
   token?: string;
   lastLogin?: string;
 }
+
+export type User = AppUser;
 
 export interface SsoPresetProfile {
   id: string;

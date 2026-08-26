@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { RegisterDefinition, RegisterEntryRow, Officer, ColumnDefinition } from "../types.js";
-import { X, Check, Calendar, Clock, Users, Plus, Trash2 } from "lucide-react";
+import { RegisterDefinition, RegisterEntryRow, Officer, ColumnDefinition, RIN3_CATEGORIES } from "../types.js";
+import { X, Check, Calendar, Clock, Users, Plus, Trash2, Layers } from "lucide-react";
 
 interface EntryFormModalProps {
   isOpen: boolean;
@@ -427,6 +427,34 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
               />
             </div>
           </div>
+
+          {/* Khusus R.IN.3: Pilihan Bidang / Kategori Intelijen */}
+          {register.code === "R.IN.3" && (
+            <div className="p-3 bg-emerald-50/70 rounded border border-emerald-300 space-y-1.5">
+              <label className="text-[11px] font-bold text-emerald-950 uppercase tracking-tight flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Bidang / Kategori Intelijen (R.IN.3)</span>
+              </label>
+              <select
+                id="select-rin3-category"
+                value={formData.kategori || formData.bidang || "IDEOLOGI, POLITIK, PERTAHANAN DAN KEAMANAN"}
+                onChange={(e) => {
+                  handleChange("kategori", e.target.value);
+                  handleChange("bidang", e.target.value);
+                }}
+                className="w-full px-2.5 py-1.5 text-xs font-semibold bg-white border border-emerald-400 rounded focus:ring-1 focus:ring-emerald-600 text-slate-800"
+              >
+                {RIN3_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-emerald-800 italic">
+                *) Sesuai ketentuan R.IN.3, entri diklasifikasikan ke salah satu dari 5 bidang intelijen.
+              </p>
+            </div>
+          )}
 
           {/* Dynamic Fields generated based on Document Columns */}
           <div className="space-y-3">

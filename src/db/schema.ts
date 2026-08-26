@@ -75,3 +75,22 @@ export const storageCodes = pgTable("storage_codes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const registerLocks = pgTable("register_locks", {
+  id: serial("id").primaryKey(),
+  registerCode: text("register_code").notNull(),
+  periodKey: text("period_key").notNull(),
+  isLocked: integer("is_locked").notNull().default(1),
+  leftSignerTitle: text("left_signer_title"),
+  leftSignerName: text("left_signer_name"),
+  leftSignerPangkatNip: text("left_signer_pangkat_nip"),
+  rightSignerTitle: text("right_signer_title"),
+  rightSignerName: text("right_signer_name"),
+  rightSignerPangkatNip: text("right_signer_pangkat_nip"),
+  signatureAlignment: text("signature_alignment").default("split"),
+  tempatDokumen: text("tempat_dokumen"),
+  closingDate: text("closing_date"),
+  lockedBy: text("locked_by"),
+  lockedAt: timestamp("locked_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+

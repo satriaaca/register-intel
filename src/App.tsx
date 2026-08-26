@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Loader2, LogOut } from "lucide-react";
 
-import { Navbar } from "./components/Navbar.tsx";
-import { RegisterSelector } from "./components/RegisterSelector.tsx";
-import { RegisterDocumentView } from "./components/RegisterDocumentView.tsx";
-import { OfficersManager } from "./components/OfficersManager.tsx";
-import { SettingsManager } from "./components/SettingsManager.tsx";
-import { StorageCodesModal } from "./components/StorageCodesModal.tsx";
-import LoginGate from "./components/LoginGate";
+import { Navbar } from "./components/Navbar.js";
+import { RegisterSelector } from "./components/RegisterSelector.js";
+import { RegisterDocumentView } from "./components/RegisterDocumentView.js";
+import { OfficersManager } from "./components/OfficersManager.js";
+import { SettingsManager } from "./components/SettingsManager.js";
+import { StorageCodesModal } from "./components/StorageCodesModal.js";
+import LoginGate from "./components/LoginGate.js";
 
 import {
   logOutFromFirebase,
   subscribeToAuthState,
-} from "./lib/firebase";
+} from "./lib/firebase.js";
 import { authFetch } from "./lib/api.js";
 
 import type {

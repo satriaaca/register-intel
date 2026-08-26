@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { signInWithGoogleSSO } from "../lib/firebase.js";
+import { ArchivingAnimation } from "./ArchivingAnimation.js";
 
 export default function LoginGate() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -26,49 +27,64 @@ export default function LoginGate() {
     };
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-            <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-xl">
-                <p className="text-xs font-bold uppercase tracking-widest text-emerald-700">
-                    Kejaksaan Negeri Tabanan
-                </p>
+        <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 p-4 sm:p-6">
+            <section className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700/60 bg-white/95 p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+                {/* Header instansi */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">
+                            Kejaksaan Negeri Tabanan
+                        </p>
+                        <h1 className="mt-0.5 text-xl font-extrabold text-slate-900">
+                            Sistem Register Intelijen
+                        </h1>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-700">
+                        <ShieldCheck className="h-6 w-6" />
+                    </div>
+                </div>
 
-                <h1 className="mt-3 text-2xl font-bold text-slate-900">
-                    Register Intelijen
-                </h1>
+                {/* Person Archiving Book Animation */}
+                <div className="my-5">
+                    <ArchivingAnimation />
+                </div>
 
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Masuk menggunakan akun Google yang telah terdaftar dan berwenang
-                    mengakses sistem.
+                {/* Deskripsi */}
+                <p className="text-center text-xs leading-relaxed text-slate-600 sm:text-sm">
+                    Akses terautentikasi untuk pengarsipan, pencatatan buku register, dan tata kelola administrasi intelijen Kejaksaan.
                 </p>
 
                 {error && (
-                    <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs sm:text-sm text-red-700">
                         {error}
                     </div>
                 )}
 
+                {/* Tombol Login */}
                 <button
+                    id="btn-google-login"
                     type="button"
                     onClick={handleLogin}
                     disabled={isLoggingIn}
-                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-5 flex w-full items-center justify-center gap-2.5 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-700/25 transition hover:bg-emerald-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {isLoggingIn ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Memproses login...
+                            <span>Memproses verifikasi Google...</span>
                         </>
                     ) : (
                         <>
                             <LogIn className="h-4 w-4" />
-                            Masuk dengan Google
+                            <span>Masuk dengan Google SSO</span>
                         </>
                     )}
                 </button>
 
-                <p className="mt-4 text-center text-xs text-slate-500">
-                    Akses hanya untuk akun yang terdaftar pada whitelist.
-                </p>
+                <div className="mt-4 flex items-center justify-center gap-2 text-center text-[11px] text-slate-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Hanya email terdaftar pada Whitelist Resmi Kejaksaan</span>
+                </div>
             </section>
         </main>
     );

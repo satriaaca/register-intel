@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer } from "../types.js";
+import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer, RegisterLock } from "../types.js";
 import { MONTH_NAMES_ID, formatDateIndonesian, getClosingDateForPeriod } from "./date-utils.js";
 import esignImage from "../assets/esign.png";
 
@@ -13,6 +13,8 @@ export interface GeneratePdfOptions {
   selectedMonth?: number | "all";
   customClosingDate?: string;
   orientationOverride?: "landscape" | "portrait";
+  lockSnapshot?: RegisterLock | null;
+  categoryFilter?: string | null;
 }
 
 export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
@@ -25,11 +27,55 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     selectedMonth = "all",
     customClosingDate,
     orientationOverride,
+    lockSnapshot,
+    categoryFilter,
   } = options;
   const isLandscape = (orientationOverride || register.orientation) === "landscape";
 
+  // Data Penandatangan: Gunakan Snapshot jika Terkunci, atau Pengaturan Global jika belum terkunci
+  const effectiveLeftSignerTitle =
+    lockSnapshot?.isLocked && lockSnapshot.leftSignerTitle
+      ? lockSnapshot.leftSignerTitle
+      : settings.leftSignerTitle;
+
+  const effectiveLeftSignerName =
+    lockSnapshot?.isLocked && lockSnapshot.leftSignerName
+      ? lockSnapshot.leftSignerName
+      : settings.leftSignerName;
+
+  const effectiveLeftSignerPangkatNip =
+    lockSnapshot?.isLocked && lockSnapshot.leftSignerPangkatNip
+      ? lockSnapshot.leftSignerPangkatNip
+      : settings.leftSignerPangkatNip;
+
+  const effectiveRightSignerTitle =
+    lockSnapshot?.isLocked && lockSnapshot.rightSignerTitle
+      ? lockSnapshot.rightSignerTitle
+      : settings.rightSignerTitle;
+
+  const effectiveRightSignerName =
+    lockSnapshot?.isLocked && lockSnapshot.rightSignerName
+      ? lockSnapshot.rightSignerName
+      : settings.rightSignerName;
+
+  const effectiveRightSignerPangkatNip =
+    lockSnapshot?.isLocked && lockSnapshot.rightSignerPangkatNip
+      ? lockSnapshot.rightSignerPangkatNip
+      : settings.rightSignerPangkatNip;
+
+  const effectiveSignatureAlignment =
+    lockSnapshot?.isLocked && lockSnapshot.signatureAlignment
+      ? lockSnapshot.signatureAlignment
+      : settings.signatureAlignment || "split";
+
+  const effectiveTempatDokumen =
+    lockSnapshot?.isLocked && lockSnapshot.tempatDokumen
+      ? lockSnapshot.tempatDokumen
+      : settings.tempatDokumen || "Tabanan";
+
   // Tentukan tanggal penutupan register aktif
   const rawClosingDate =
+    (lockSnapshot?.isLocked && lockSnapshot.closingDate) ||
     customClosingDate ||
     (typeof selectedMonth === "number"
       ? getClosingDateForPeriod(settings, tahunTakwim, selectedMonth)
@@ -213,6 +259,16 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
       currentY += subLines.length * 3.8;
     }
 
+    if (categoryFilter && categoryFilter !== "all" && register.code === "R.IN.3") {
+      docInstance.setFont("helvetica", "bold");
+      docInstance.setFontSize(8.5);
+      docInstance.setTextColor(15, 23, 42);
+      const catText = `BIDANG: ${categoryFilter.toUpperCase()}`;
+      docInstance.text(catText, pageWidth / 2, currentY, { align: "center" });
+      currentY += 4;
+      docInstance.setTextColor(0, 0, 0);
+    }
+
     // Periode Register
     docInstance.setFont("helvetica", "bold");
     docInstance.setFontSize(8);
@@ -226,7 +282,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   const startY = drawPageHeader(doc, 1);
 
   // Render tabel menggunakan autoTable
-  autoTable(doc, {
+  (autoTable as any)(doc, {
     head: headRows,
     body: bodyRows,
     startY: startY,
@@ -367,8 +423,8 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   }
 
   // Tanda Tangan
-  const isCenter = settings.signatureAlignment === "center";
-  const tglText = `${settings.tempatDokumen}, ${closingDateFormatted}`;
+  const isCenter = effectiveSignatureAlignment === "center";
+  const tglText = `${effectiveTempatDokumen}, ${closingDateFormatted}`;
 
   if (isCenter) {
     const leftCenterX = marginX + contentWidth * 0.25;
@@ -387,12 +443,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    const leftTitleClean = settings.leftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", "").trim();
+    const leftTitleClean = effectiveLeftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", "").trim();
     const leftTitleLines = doc.splitTextToSize(leftTitleClean, 75);
     doc.text(leftTitleLines, leftCenterX, finalY, { align: "center" });
 
     // Pejabat Kanan
-    const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 75);
+    const rightTitleLines = doc.splitTextToSize(effectiveRightSignerTitle, 75);
     doc.text(rightTitleLines, rightCenterX, finalY, { align: "center" });
 
     const imageYCenter = finalY + SIGN_IMG_GAP_BEFORE;
@@ -405,25 +461,25 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.text(settings.leftSignerName, leftCenterX, finalY, { align: "center" });
+    doc.text(effectiveLeftSignerName, leftCenterX, finalY, { align: "center" });
     doc.setLineWidth(0.2);
-    const leftNameWidth = doc.getTextWidth(settings.leftSignerName);
+    const leftNameWidth = doc.getTextWidth(effectiveLeftSignerName);
     doc.line(leftCenterX - leftNameWidth / 2, finalY + 0.8, leftCenterX + leftNameWidth / 2, finalY + 0.8);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(settings.leftSignerPangkatNip, leftCenterX, finalY + 4.5, { align: "center" });
+    doc.text(effectiveLeftSignerPangkatNip, leftCenterX, finalY + 4.5, { align: "center" });
 
     // Nama Pejabat Kanan
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.text(settings.rightSignerName, rightCenterX, finalY, { align: "center" });
-    const rightNameWidth = doc.getTextWidth(settings.rightSignerName);
+    doc.text(effectiveRightSignerName, rightCenterX, finalY, { align: "center" });
+    const rightNameWidth = doc.getTextWidth(effectiveRightSignerName);
     doc.line(rightCenterX - rightNameWidth / 2, finalY + 0.8, rightCenterX + rightNameWidth / 2, finalY + 0.8);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(settings.rightSignerPangkatNip, rightCenterX, finalY + 4.5, { align: "center" });
+    doc.text(effectiveRightSignerPangkatNip, rightCenterX, finalY + 4.5, { align: "center" });
   } else {
     const leftX = marginX + (isLandscape ? 20 : 10);
     const rightX = pageWidth - marginX - (isLandscape ? 80 : 70);
@@ -441,11 +497,11 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    const leftTitleLines = doc.splitTextToSize(settings.leftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", ""), 80);
+    const leftTitleLines = doc.splitTextToSize(effectiveLeftSignerTitle.replace("Mengetahui:\n", "").replace("Mengetahui:", ""), 80);
     doc.text(leftTitleLines, leftX, finalY);
 
     // Pejabat Kanan
-    const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 80);
+    const rightTitleLines = doc.splitTextToSize(effectiveRightSignerTitle, 80);
     doc.text(rightTitleLines, rightX, finalY);
 
     const imageYLeft = finalY + SIGN_IMG_GAP_BEFORE;
@@ -458,25 +514,25 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.text(settings.leftSignerName, leftX, finalY);
+    doc.text(effectiveLeftSignerName, leftX, finalY);
     doc.setLineWidth(0.2);
-    const leftNameWidth = doc.getTextWidth(settings.leftSignerName);
+    const leftNameWidth = doc.getTextWidth(effectiveLeftSignerName);
     doc.line(leftX, finalY + 0.8, leftX + Math.max(leftNameWidth, 50), finalY + 0.8);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(settings.leftSignerPangkatNip, leftX, finalY + 4.5);
+    doc.text(effectiveLeftSignerPangkatNip, leftX, finalY + 4.5);
 
     // Nama Pejabat Kanan
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.text(settings.rightSignerName, rightX, finalY);
-    const rightNameWidth = doc.getTextWidth(settings.rightSignerName);
+    doc.text(effectiveRightSignerName, rightX, finalY);
+    const rightNameWidth = doc.getTextWidth(effectiveRightSignerName);
     doc.line(rightX, finalY + 0.8, rightX + Math.max(rightNameWidth, 50), finalY + 0.8);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(settings.rightSignerPangkatNip, rightX, finalY + 4.5);
+    doc.text(effectiveRightSignerPangkatNip, rightX, finalY + 4.5);
   }
 
   // Catatan Kaki

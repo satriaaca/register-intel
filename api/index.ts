@@ -17,6 +17,10 @@ import {
     saveStorageCode,
     deleteStorageCode,
     seedStorageCodesIfEmpty,
+    getRegisterLocks,
+    getRegisterLock,
+    saveRegisterLock,
+    unlockRegister,
 } from "../src/db/queries.js";
 
 import { REGISTER_DEFINITIONS } from "../src/lib/constants.js";
@@ -293,6 +297,93 @@ app.delete("/api/storage-codes/:id", async (req, res) => {
     } catch (error) {
         res.status(500).json({
             error: getErrorMessage(error, "Failed to delete storage code"),
+        });
+    }
+});
+
+// Register Locks
+app.get("/api/register-locks", async (req, res) => {
+    try {
+        const registerCode = req.query.registerCode as string | undefined;
+        const periodKey = req.query.periodKey as string | undefined;
+
+        if (registerCode && periodKey) {
+            const lock = await getRegisterLock(registerCode, periodKey);
+            return res.json(lock);
+        }
+
+        const list = await getRegisterLocks(registerCode);
+        res.json(list);
+    } catch (error) {
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to fetch register locks"),
+        });
+    }
+});
+
+app.post("/api/register-locks", async (req, res) => {
+    try {
+        const {
+            registerCode,
+            periodKey,
+            isLocked,
+            leftSignerTitle,
+            leftSignerName,
+            leftSignerPangkatNip,
+            rightSignerTitle,
+            rightSignerName,
+            rightSignerPangkatNip,
+            signatureAlignment,
+            tempatDokumen,
+            closingDate,
+            lockedBy,
+        } = req.body;
+
+        if (!registerCode || !periodKey) {
+            return res.status(400).json({
+                error: "registerCode dan periodKey wajib diisi.",
+            });
+        }
+
+        const saved = await saveRegisterLock({
+            registerCode,
+            periodKey,
+            isLocked: isLocked !== undefined ? isLocked : true,
+            leftSignerTitle,
+            leftSignerName,
+            leftSignerPangkatNip,
+            rightSignerTitle,
+            rightSignerName,
+            rightSignerPangkatNip,
+            signatureAlignment,
+            tempatDokumen,
+            closingDate,
+            lockedBy,
+        });
+
+        res.status(200).json(saved);
+    } catch (error) {
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to save register lock"),
+        });
+    }
+});
+
+app.post("/api/register-locks/unlock", async (req, res) => {
+    try {
+        const { registerCode, periodKey } = req.body;
+
+        if (!registerCode || !periodKey) {
+            return res.status(400).json({
+                error: "registerCode dan periodKey wajib diisi.",
+            });
+        }
+
+        await unlockRegister(registerCode, periodKey);
+        res.json({ success: true, message: "Kunci register berhasil dibuka." });
+    } catch (error) {
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to unlock register"),
         });
     }
 });
