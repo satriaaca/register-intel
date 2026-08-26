@@ -89,11 +89,13 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
       ? `${MONTH_NAMES_ID[selectedMonth - 1]} ${tahunTakwim}`
       : `Tahun ${tahunTakwim}`;
 
-  // Inisialisasi dokumen jsPDF
+  // Inisialisasi dokumen jsPDF dengan kompresi aktif
   const doc = new jsPDF({
     orientation: isLandscape ? "landscape" : "portrait",
     unit: "mm",
     format: "a4",
+    compress: true,
+    putOnlyUsedFonts: true,
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -453,8 +455,8 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
     const imageYCenter = finalY + SIGN_IMG_GAP_BEFORE;
     if (signImgWidth > 0 && signImgHeight > 0) {
-      doc.addImage(esignImage, "PNG", leftCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight);
-      doc.addImage(esignImage, "PNG", rightCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight);
+      doc.addImage(esignImage, "PNG", leftCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
+      doc.addImage(esignImage, "PNG", rightCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
     }
     finalY = imageYCenter + signImgHeight + SIGN_IMG_GAP_AFTER;
 
@@ -506,8 +508,8 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
     const imageYLeft = finalY + SIGN_IMG_GAP_BEFORE;
     if (signImgWidth > 0 && signImgHeight > 0) {
-      doc.addImage(esignImage, "PNG", leftX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight);
-      doc.addImage(esignImage, "PNG", rightX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight);
+      doc.addImage(esignImage, "PNG", leftX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
+      doc.addImage(esignImage, "PNG", rightX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
     }
     finalY = imageYLeft + signImgHeight + SIGN_IMG_GAP_AFTER;
 
