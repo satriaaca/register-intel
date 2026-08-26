@@ -177,13 +177,13 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
           </div>
         </div>
 
-        {/* Manajemen Tahun Takwim & Format Penandatangan */}
+        {/* Manajemen Tahun & Format Penandatangan */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Kelola Daftar Tahun Takwim */}
+          {/* Kelola Daftar Tahun */}
           <div className="bg-white rounded-lg shadow-2xs border border-slate-200 p-4 space-y-3">
             <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
               <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-              Kelola Daftar Tahun Takwim
+              Kelola Daftar Tahun
             </h3>
             <p className="text-[11px] text-slate-500">
               Tambahkan tahun baru (misal: 2027, 2028, 2029) agar muncul pada seleksi register & laporan:

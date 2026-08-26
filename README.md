@@ -50,7 +50,7 @@ Sistem Informasi Manajemen dan Pembuatan Buku Register Intelijen Kejaksaan Repub
 
 5. **Manajemen Periode Bulanan & Tahun**
    - Filter data register per bulan (Januari s/d Desember) atau semua bulan dalam setahun.
-   - Manajemen daftar tahun takwim dinamis (tambah/hapus tahun sesuai kebutuhan).
+   - Manajemen daftar tahun dinamis (tambah/hapus tahun sesuai kebutuhan).
    - Pengaturan tanggal penutupan buku register per bulan yang dapat disesuaikan (menyesuaikan hari kerja efektif / tanggal akhir bulan).
 
 6. **Ekspor & Pratinjau Dokumen PDF Resmi**

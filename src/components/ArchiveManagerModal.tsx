@@ -366,7 +366,7 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-slate-200 bg-slate-100 text-slate-700">
                     <tr>
-                      <th className="px-4 py-2.5 font-bold uppercase">Tahun Takwim</th>
+                      <th className="px-4 py-2.5 font-bold uppercase">Tahun</th>
                       <th className="px-3 py-2.5 font-bold uppercase text-center">Jumlah Entri</th>
                       <th className="px-3 py-2.5 font-bold uppercase text-center">Kunci Dokumen</th>
                       <th className="px-3 py-2.5 font-bold uppercase">Status Retensi</th>
@@ -514,7 +514,7 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
                       <p className="text-[11px] text-slate-500">{parsedPackage.app || "AMERTA"}</p>
                     </div>
                     <span className="rounded-full bg-emerald-100 px-3 py-1 font-mono text-xs font-bold text-emerald-900">
-                      Tahun Takwim: {parsedPackage.year}
+                      Tahun: {parsedPackage.year}
                     </span>
                   </div>
 
@@ -647,7 +647,7 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
                         Siklus Retensi 3 Tahun di Neon Postgres
                       </strong>
                       <p className="text-slate-600 mt-0.5">
-                        Database online Neon difokuskan untuk 3 tahun takwim aktif (misal 2024, 2025, 2026). Ini memastikan kuota gratis 0.5 GB tidak pernah penuh dan performa query selalu cepat.
+                        Database online Neon difokuskan untuk 3 tahun aktif (misal 2024, 2025, 2026). Ini memastikan kuota gratis 0.5 GB tidak pernah penuh dan performa query selalu cepat.
                       </p>
                     </div>
                   </div>
@@ -729,7 +729,7 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
                 <h3 className="font-bold text-slate-900 text-sm uppercase">
                   Konfirmasi Pengosongan Data
                 </h3>
-                <p className="text-xs text-red-600 font-semibold">Tahun Takwim {purgeTargetYear}</p>
+                <p className="text-xs text-red-600 font-semibold">Tahun {purgeTargetYear}</p>
               </div>
             </div>
 

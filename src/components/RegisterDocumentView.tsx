@@ -476,7 +476,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   const currentPeriodLabel =
     typeof selectedMonth === "number"
       ? `Bulan ${MONTH_NAMES_ID[selectedMonth - 1]} ${selectedYear}`
-      : `Tahun Takwim ${selectedYear} (Semua Bulan)`;
+      : `Tahun ${selectedYear} (Semua Bulan)`;
 
   // Mendapatkan daftar kolom datar (termasuk subColumns) untuk rendering border baris
   const flattenedColumns = register.columns.flatMap((col) =>
@@ -884,7 +884,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                   selectedMonth - 1
                 ].toUpperCase()}`
                 : "SEMUA BULAN"}{" "}
-              - TAHUN TAKWIM {selectedYear}
+              - TAHUN {selectedYear}
             </p>
           </div>
         </div>

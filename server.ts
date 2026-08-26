@@ -453,7 +453,7 @@ async function startServer() {
     try {
       const year = parseInt(req.params.year, 10);
       if (isNaN(year)) {
-        return res.status(400).json({ error: "Tahun takwim tidak valid." });
+        return res.status(400).json({ error: "Tahun tidak valid." });
       }
 
       const userName = (req as any).user?.name || "Admin Intelijen";
@@ -471,7 +471,7 @@ async function startServer() {
     try {
       const year = parseInt(req.params.year, 10);
       if (isNaN(year)) {
-        return res.status(400).json({ error: "Tahun takwim tidak valid." });
+        return res.status(400).json({ error: "Tahun tidak valid." });
       }
 
       const result = await purgeYearData(year);
