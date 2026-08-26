@@ -5,11 +5,21 @@ import { auth } from "./firebase.js";
  * dengan Firebase ID Token dari user yang sedang login.
  */
 export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-  const currentUser = auth.currentUser;
+  // Tunggu inisialisasi state Firebase Auth jika belum selesai
+  if (typeof auth.authStateReady === "function") {
+    try {
+      await auth.authStateReady();
+    } catch {
+      // Abaikan jika authStateReady gagal
+    }
+  }
 
+  let currentUser = auth.currentUser;
   let token = "";
+
   if (currentUser) {
     try {
+      // Dapatkan token valid (auto refresh jika mendekati kedaluwarsa)
       token = await currentUser.getIdToken();
     } catch (err) {
       console.warn("Gagal mendapatkan Firebase ID Token:", err);
@@ -33,3 +43,4 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
 
   return response;
 }
+

@@ -21,11 +21,15 @@ import {
     getRegisterLock,
     saveRegisterLock,
     unlockRegister,
+    getDatabaseArchiveStats,
+    exportYearArchive,
+    purgeYearData,
+    restoreArchivePackage,
 } from "../src/db/queries.js";
 
 import { REGISTER_DEFINITIONS } from "../src/lib/constants.js";
 import { ensureRIn3DataSeeded } from "../src/lib/seed-rin3.js";
-import { requireAuth } from "../src/lib/serverAuth.js";
+import { requireAuth, requireArchiveSuperAdmin } from "../src/lib/serverAuth.js";
 
 function getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
@@ -408,6 +412,84 @@ app.post("/api/registers/:code/import-batch", async (req, res) => {
     } catch (error) {
         res.status(500).json({
             error: getErrorMessage(error, "Failed to import entries batch"),
+        });
+    }
+});
+
+// Archive & Database Retention Management (Khusus akun hijau.kn.tabanan@gmail.com)
+const handleArchiveStats = async (_req: express.Request, res: express.Response) => {
+    try {
+        const stats = await getDatabaseArchiveStats();
+        res.json(stats);
+    } catch (error: unknown) {
+        console.error("Error fetching archive stats:", error);
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to fetch archive stats"),
+        });
+    }
+};
+
+app.get("/api/archive/stats", requireArchiveSuperAdmin, handleArchiveStats);
+app.get("/api/stats", requireArchiveSuperAdmin, handleArchiveStats);
+
+app.get("/api/archive/export/:year", requireArchiveSuperAdmin, async (req, res) => {
+    try {
+        const year = parseInt(req.params.year, 10);
+        if (isNaN(year)) {
+            return res.status(400).json({ error: "Tahun tidak valid." });
+        }
+
+        const userName = (req as any).user?.name || "Admin Intelijen";
+        const pkg = await exportYearArchive(year, userName);
+        res.json(pkg);
+    } catch (error: unknown) {
+        console.error(`Error exporting archive for year ${req.params.year}:`, error);
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to export archive"),
+        });
+    }
+});
+
+app.post("/api/archive/purge/:year", requireArchiveSuperAdmin, async (req, res) => {
+    try {
+        const year = parseInt(req.params.year, 10);
+        if (isNaN(year)) {
+            return res.status(400).json({ error: "Tahun tidak valid." });
+        }
+
+        const result = await purgeYearData(year);
+        res.json({
+            success: true,
+            message: `Berhasil mengosongkan data tahun ${year} (${result.deletedEntriesCount} entri, ${result.deletedLocksCount} kunci register).`,
+            ...result,
+        });
+    } catch (error: unknown) {
+        console.error(`Error purging archive for year ${req.params.year}:`, error);
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to purge year data"),
+        });
+    }
+});
+
+app.post("/api/archive/restore", requireArchiveSuperAdmin, async (req, res) => {
+    try {
+        const { package: pkg, mode } = req.body;
+        if (!pkg || !pkg.year || !Array.isArray(pkg.entries)) {
+            return res.status(400).json({
+                error: "Berkas paket arsip tidak valid atau struktur tidak sesuai.",
+            });
+        }
+
+        const result = await restoreArchivePackage(pkg, mode || "replace");
+        res.json({
+            success: true,
+            message: `Berhasil memulihkan ${result.restoredEntries} baris data dan ${result.restoredLocks} kunci register untuk tahun ${pkg.year}.`,
+            ...result,
+        });
+    } catch (error: unknown) {
+        console.error("Error restoring archive:", error);
+        res.status(500).json({
+            error: getErrorMessage(error, "Failed to restore archive"),
         });
     }
 });

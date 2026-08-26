@@ -437,7 +437,7 @@ async function startServer() {
   });
 
   // Archive & Database Retention Management (Khusus akun hijau.kn.tabanan@gmail)
-  app.get("/api/archive/stats", requireArchiveSuperAdmin, async (_req, res) => {
+  const handleArchiveStats = async (_req: express.Request, res: express.Response) => {
     try {
       const stats = await getDatabaseArchiveStats();
       res.json(stats);
@@ -447,7 +447,10 @@ async function startServer() {
         error: getErrorMessage(error, "Failed to fetch archive stats"),
       });
     }
-  });
+  };
+
+  app.get("/api/archive/stats", requireArchiveSuperAdmin, handleArchiveStats);
+  app.get("/api/stats", requireArchiveSuperAdmin, handleArchiveStats);
 
   app.get("/api/archive/export/:year", requireArchiveSuperAdmin, async (req, res) => {
     try {
