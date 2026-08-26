@@ -48,7 +48,7 @@ import {
   countRin3EntriesByCategory,
 } from "../lib/rin3-category.js";
 
-import esignImage from "../assets/esign.png";
+import { ESIGN_DATA_URL } from "../assets/esignBase64.js";
 
 import { EntryFormModal } from "./EntryFormModal.js";
 import { ImportCsvModal } from "./ImportCsvModal.js";
@@ -1194,7 +1194,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                   (my-2) di atas dan bawah terhadap teks jabatan & nama.
                 */}
                 <img
-                  src={esignImage}
+                  src={ESIGN_DATA_URL}
                   alt="Tanda tangan elektronik"
                   className="h-24 max-w-[180px] object-contain my-2"
                 />
@@ -1225,7 +1225,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 </p>
 
                 <img
-                  src={esignImage}
+                  src={ESIGN_DATA_URL}
                   alt="Tanda tangan elektronik"
                   className="h-24 max-w-[180px] object-contain my-2"
                 />
@@ -1255,7 +1255,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 </p>
 
                 <img
-                  src={esignImage}
+                  src={ESIGN_DATA_URL}
                   alt="Tanda tangan elektronik"
                   className="h-20 max-w-[160px] object-contain my-2"
                 />
@@ -1286,7 +1286,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 </p>
 
                 <img
-                  src={esignImage}
+                  src={ESIGN_DATA_URL}
                   alt="Tanda tangan elektronik"
                   className="ml-auto h-20 max-w-[160px] object-contain my-2"
                 />

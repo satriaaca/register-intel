@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer, RegisterLock } from "../types.js";
 import { MONTH_NAMES_ID, formatDateIndonesian, getClosingDateForPeriod } from "./date-utils.js";
-import esignImage from "../assets/esign.png";
+import { ESIGN_DATA_URL } from "../assets/esignBase64.js";
 
 export interface GeneratePdfOptions {
   register: RegisterDefinition;
@@ -402,7 +402,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   let signImgWidth = 0;
   let signImgHeight = 0;
   try {
-    const imgProps = doc.getImageProperties(esignImage);
+    const imgProps = doc.getImageProperties(ESIGN_DATA_URL);
     const ratio = imgProps.width / imgProps.height;
     signImgWidth = SIGN_IMG_MAX_WIDTH;
     signImgHeight = signImgWidth / ratio;
@@ -411,9 +411,9 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
       signImgWidth = signImgHeight * ratio;
     }
   } catch (e) {
-    // Gagal memuat esign.png, lanjutkan tanpa gambar
-    signImgWidth = 0;
-    signImgHeight = 0;
+    // Fallback ukuran proporsional
+    signImgWidth = 35;
+    signImgHeight = 18;
   }
 
   // Cek ruang penandatanganan
@@ -455,8 +455,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
     const imageYCenter = finalY + SIGN_IMG_GAP_BEFORE;
     if (signImgWidth > 0 && signImgHeight > 0) {
-      doc.addImage(esignImage, "PNG", leftCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
-      doc.addImage(esignImage, "PNG", rightCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
+      try {
+        doc.addImage(ESIGN_DATA_URL, "PNG", leftCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight, "ESIGN_STAMP_LEFT", "FAST");
+        doc.addImage(ESIGN_DATA_URL, "PNG", rightCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight, "ESIGN_STAMP_RIGHT", "FAST");
+      } catch (err) {
+        console.warn("Failed to add esign image to PDF:", err);
+      }
     }
     finalY = imageYCenter + signImgHeight + SIGN_IMG_GAP_AFTER;
 
@@ -508,8 +512,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
 
     const imageYLeft = finalY + SIGN_IMG_GAP_BEFORE;
     if (signImgWidth > 0 && signImgHeight > 0) {
-      doc.addImage(esignImage, "PNG", leftX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
-      doc.addImage(esignImage, "PNG", rightX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight, "ESIGN_STAMP", "FAST");
+      try {
+        doc.addImage(ESIGN_DATA_URL, "PNG", leftX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight, "ESIGN_STAMP_LEFT", "FAST");
+        doc.addImage(ESIGN_DATA_URL, "PNG", rightX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight, "ESIGN_STAMP_RIGHT", "FAST");
+      } catch (err) {
+        console.warn("Failed to add esign image to PDF:", err);
+      }
     }
     finalY = imageYLeft + signImgHeight + SIGN_IMG_GAP_AFTER;
 
