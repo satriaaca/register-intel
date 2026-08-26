@@ -129,24 +129,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="xl:hidden">Arsip</span>
             </button>
           )}
-
-          <button
-            id="btn-seed-sample"
-            type="button"
-            onClick={onSeedSample}
-            disabled={isSeeding}
-            title="Muat data contoh pengujian"
-            className="hidden items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:inline-flex"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${isSeeding ? "animate-spin text-emerald-600" : "text-slate-500"
-                }`}
-            />
-
-            <span className="hidden lg:inline">
-              {isSeeding ? "Memuat..." : "Data Contoh"}
-            </span>
-          </button>
         </div>
       </div>
 

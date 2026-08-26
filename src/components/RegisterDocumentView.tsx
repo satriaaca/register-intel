@@ -34,6 +34,8 @@ import {
   getClosingDateForPeriod,
 } from "../lib/date-utils.js";
 
+import esignImage from "../assets/esign.png";
+
 import { EntryFormModal } from "./EntryFormModal.tsx";
 import { ImportCsvModal } from "./ImportCsvModal.tsx";
 import { PdfPreviewModal } from "./PdfPreviewModal.tsx";
@@ -946,7 +948,13 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                     .replace("Mengetahui:", "")}
                 </p>
 
-                <div className="flex h-16 items-end justify-center">
+                <img
+                  src={esignImage}
+                  alt="Tanda tangan elektronik"
+                  className="h-16 max-w-[120px] object-contain"
+                />
+
+                <div className="flex items-end justify-center">
                   <div className="text-center">
                     <p className="text-xs font-bold text-slate-900 underline">
                       {settings.leftSignerName}
@@ -971,7 +979,13 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                   {settings.rightSignerTitle}
                 </p>
 
-                <div className="flex h-16 items-end justify-center">
+                <img
+                  src={esignImage}
+                  alt="Tanda tangan elektronik"
+                  className="h-16 max-w-[120px] object-contain"
+                />
+
+                <div className="flex items-end justify-center">
                   <div className="text-center">
                     <p className="text-xs font-bold text-slate-900 underline">
                       {settings.rightSignerName}
@@ -995,7 +1009,13 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                     .replace("Mengetahui:", "")}
                 </p>
 
-                <div className="flex h-14 items-end">
+                <img
+                  src={esignImage}
+                  alt="Tanda tangan elektronik"
+                  className="h-14 max-w-[110px] object-contain"
+                />
+
+                <div className="flex items-end">
                   <div className="w-full">
                     <p className="text-xs font-bold text-slate-900 underline">
                       {settings.leftSignerName}
@@ -1020,7 +1040,13 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                   {settings.rightSignerTitle}
                 </p>
 
-                <div className="flex h-14 items-end justify-start sm:justify-end">
+                <img
+                  src={esignImage}
+                  alt="Tanda tangan elektronik"
+                  className="ml-auto h-14 max-w-[110px] object-contain"
+                />
+
+                <div className="flex items-end justify-start sm:justify-end">
                   <div>
                     <p className="text-xs font-bold text-slate-900 underline">
                       {settings.rightSignerName}

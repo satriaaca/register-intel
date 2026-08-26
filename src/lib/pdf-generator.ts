@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { RegisterDefinition, RegisterEntryRow, AppSettings, Officer } from "../types.js";
 import { MONTH_NAMES_ID, formatDateIndonesian, getClosingDateForPeriod } from "./date-utils.js";
+import esignImage from "../assets/esign.png";
 
 export interface GeneratePdfOptions {
   register: RegisterDefinition;
@@ -332,8 +333,28 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     finalY += 4;
   }
 
+   // Hitung ukuran gambar tanda tangan elektronik secara proporsional
+  const SIGN_IMG_MAX_WIDTH = 30; // mm
+  const SIGN_IMG_MAX_HEIGHT = 16; // mm
+  let signImgWidth = 0;
+  let signImgHeight = 0;
+  try {
+    const imgProps = doc.getImageProperties(esignImage);
+    const ratio = imgProps.width / imgProps.height;
+    signImgWidth = SIGN_IMG_MAX_WIDTH;
+    signImgHeight = signImgWidth / ratio;
+    if (signImgHeight > SIGN_IMG_MAX_HEIGHT) {
+      signImgHeight = SIGN_IMG_MAX_HEIGHT;
+      signImgWidth = signImgHeight * ratio;
+    }
+  } catch (e) {
+    // Gagal memuat esign.png, lanjutkan tanpa gambar
+    signImgWidth = 0;
+    signImgHeight = 0;
+  }
+
   // Cek ruang penandatanganan
-  const signatureHeight = 42;
+  const signatureHeight = 42 + SIGN_IMG_MAX_HEIGHT;
   if (finalY + signatureHeight > pageHeight - marginBottom - 10) {
     doc.addPage();
     drawPageHeader(doc, (doc as any).internal.getNumberOfPages());
@@ -369,7 +390,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 75);
     doc.text(rightTitleLines, rightCenterX, finalY, { align: "center" });
 
-    finalY += 22;
+    const imageYCenter = finalY + 6;
+    if (signImgWidth > 0 && signImgHeight > 0) {
+      doc.addImage(esignImage, "PNG", leftCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight);
+      doc.addImage(esignImage, "PNG", rightCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight);
+    }
+    finalY = imageYCenter + signImgHeight + 6;
 
     // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
@@ -417,7 +443,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 80);
     doc.text(rightTitleLines, rightX, finalY);
 
-    finalY += 22;
+    const imageYLeft = finalY + 6;
+    if (signImgWidth > 0 && signImgHeight > 0) {
+      doc.addImage(esignImage, "PNG", leftX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight);
+      doc.addImage(esignImage, "PNG", rightX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight);
+    }
+    finalY = imageYLeft + signImgHeight + 6;
 
     // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
