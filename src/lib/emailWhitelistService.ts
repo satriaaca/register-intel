@@ -24,7 +24,17 @@ export const DEFAULT_ALLOWED_EMAILS: WhitelistEmailConfig[] = [
     },
     {
         email: "ikadek.satriawan@gmail.com",
-        name: "I Kadek Satriawan, S.H. (Administrator)",
+        name: "I Kadek Satriawan, S.Kom. (Administrator)",
+        role: "Administrator",
+        unit: "Administrator Sistem Intelijen Kejaksaan Negeri Tabanan",
+        nip: "19820514 200703 1 001",
+        note: "Akun Administrator Sistem",
+        isActive: true,
+    },
+
+        {
+        email: "intelijenkejaritabanan@gmail.com",
+        name: "Komang Nita Indriani, S.H. (Administrator)",
         role: "Administrator",
         unit: "Administrator Sistem Intelijen Kejaksaan Negeri Tabanan",
         nip: "19820514 200703 1 001",
