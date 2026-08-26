@@ -948,10 +948,14 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                     .replace("Mengetahui:", "")}
                 </p>
 
+                {/*
+                  Gambar tanda tangan elektronik dengan jarak tetap ~8px
+                  (my-2) di atas dan bawah terhadap teks jabatan & nama.
+                */}
                 <img
                   src={esignImage}
                   alt="Tanda tangan elektronik"
-                  className="h-16 max-w-[120px] object-contain"
+                  className="h-24 max-w-[180px] object-contain my-2"
                 />
 
                 <div className="flex items-end justify-center">
@@ -982,7 +986,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <img
                   src={esignImage}
                   alt="Tanda tangan elektronik"
-                  className="h-16 max-w-[120px] object-contain"
+                  className="h-24 max-w-[180px] object-contain my-2"
                 />
 
                 <div className="flex items-end justify-center">
@@ -1012,7 +1016,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <img
                   src={esignImage}
                   alt="Tanda tangan elektronik"
-                  className="h-14 max-w-[110px] object-contain"
+                  className="h-20 max-w-[160px] object-contain my-2"
                 />
 
                 <div className="flex items-end">
@@ -1043,7 +1047,7 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
                 <img
                   src={esignImage}
                   alt="Tanda tangan elektronik"
-                  className="ml-auto h-14 max-w-[110px] object-contain"
+                  className="ml-auto h-20 max-w-[160px] object-contain my-2"
                 />
 
                 <div className="flex items-end justify-start sm:justify-end">

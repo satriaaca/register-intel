@@ -333,9 +333,14 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     finalY += 4;
   }
 
-   // Hitung ukuran gambar tanda tangan elektronik secara proporsional
-  const SIGN_IMG_MAX_WIDTH = 30; // mm
-  const SIGN_IMG_MAX_HEIGHT = 16; // mm
+  // Hitung ukuran gambar tanda tangan elektronik secara proporsional.
+  const SIGN_IMG_MAX_WIDTH = 40; // mm
+  const SIGN_IMG_MAX_HEIGHT = 22; // mm
+  // Offset vertikal antara teks jabatan/nama dengan gambar tanda tangan.
+  // ~2mm kira-kira setara dengan 8px pada layar (96dpi).
+  const SIGN_IMG_GAP_BEFORE = 2; // mm, jarak dari baris judul ke gambar
+  const SIGN_IMG_GAP_AFTER = 2; // mm, jarak dari gambar ke baris nama
+
   let signImgWidth = 0;
   let signImgHeight = 0;
   try {
@@ -354,7 +359,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   }
 
   // Cek ruang penandatanganan
-  const signatureHeight = 42 + SIGN_IMG_MAX_HEIGHT;
+  const signatureHeight = 34 + SIGN_IMG_MAX_HEIGHT;
   if (finalY + signatureHeight > pageHeight - marginBottom - 10) {
     doc.addPage();
     drawPageHeader(doc, (doc as any).internal.getNumberOfPages());
@@ -390,12 +395,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 75);
     doc.text(rightTitleLines, rightCenterX, finalY, { align: "center" });
 
-    const imageYCenter = finalY + 6;
+    const imageYCenter = finalY + SIGN_IMG_GAP_BEFORE;
     if (signImgWidth > 0 && signImgHeight > 0) {
       doc.addImage(esignImage, "PNG", leftCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight);
       doc.addImage(esignImage, "PNG", rightCenterX - signImgWidth / 2, imageYCenter, signImgWidth, signImgHeight);
     }
-    finalY = imageYCenter + signImgHeight + 6;
+    finalY = imageYCenter + signImgHeight + SIGN_IMG_GAP_AFTER;
 
     // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
@@ -443,12 +448,12 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     const rightTitleLines = doc.splitTextToSize(settings.rightSignerTitle, 80);
     doc.text(rightTitleLines, rightX, finalY);
 
-    const imageYLeft = finalY + 6;
+    const imageYLeft = finalY + SIGN_IMG_GAP_BEFORE;
     if (signImgWidth > 0 && signImgHeight > 0) {
       doc.addImage(esignImage, "PNG", leftX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight);
       doc.addImage(esignImage, "PNG", rightX + 20 - signImgWidth / 2, imageYLeft, signImgWidth, signImgHeight);
     }
-    finalY = imageYLeft + signImgHeight + 6;
+    finalY = imageYLeft + signImgHeight + SIGN_IMG_GAP_AFTER;
 
     // Nama Pejabat Kiri
     doc.setFont("helvetica", "bold");
