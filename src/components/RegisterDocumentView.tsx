@@ -248,42 +248,42 @@ export const RegisterDocumentView: React.FC<RegisterDocumentViewProps> = ({
   const effectiveLeftSignerTitle =
     currentLock?.isLocked && currentLock.leftSignerTitle
       ? currentLock.leftSignerTitle
-      : settings.leftSignerTitle;
+      : settings?.leftSignerTitle || "KEPALA KEJAKSAAN NEGERI TABANAN";
 
   const effectiveLeftSignerName =
     currentLock?.isLocked && currentLock.leftSignerName
       ? currentLock.leftSignerName
-      : settings.leftSignerName;
+      : settings?.leftSignerName || "";
 
   const effectiveLeftSignerPangkatNip =
     currentLock?.isLocked && currentLock.leftSignerPangkatNip
       ? currentLock.leftSignerPangkatNip
-      : settings.leftSignerPangkatNip;
+      : settings?.leftSignerPangkatNip || "";
 
   const effectiveRightSignerTitle =
     currentLock?.isLocked && currentLock.rightSignerTitle
       ? currentLock.rightSignerTitle
-      : settings.rightSignerTitle;
+      : settings?.rightSignerTitle || "KEPALA SEKSI INTELIJEN";
 
   const effectiveRightSignerName =
     currentLock?.isLocked && currentLock.rightSignerName
       ? currentLock.rightSignerName
-      : settings.rightSignerName;
+      : settings?.rightSignerName || "";
 
   const effectiveRightSignerPangkatNip =
     currentLock?.isLocked && currentLock.rightSignerPangkatNip
       ? currentLock.rightSignerPangkatNip
-      : settings.rightSignerPangkatNip;
+      : settings?.rightSignerPangkatNip || "";
 
   const effectiveSignatureAlignment =
     currentLock?.isLocked && currentLock.signatureAlignment
       ? currentLock.signatureAlignment
-      : settings.signatureAlignment || "split";
+      : settings?.signatureAlignment || "split";
 
   const effectiveTempatDokumen =
     currentLock?.isLocked && currentLock.tempatDokumen
       ? currentLock.tempatDokumen
-      : settings.tempatDokumen || "Tabanan";
+      : settings?.tempatDokumen || "Tabanan";
 
   const officerMap = new Map<number, Officer>();
 

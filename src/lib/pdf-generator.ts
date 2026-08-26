@@ -36,42 +36,42 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
   const effectiveLeftSignerTitle =
     lockSnapshot?.isLocked && lockSnapshot.leftSignerTitle
       ? lockSnapshot.leftSignerTitle
-      : settings.leftSignerTitle;
+      : settings?.leftSignerTitle || "KEPALA KEJAKSAAN NEGERI TABANAN";
 
   const effectiveLeftSignerName =
     lockSnapshot?.isLocked && lockSnapshot.leftSignerName
       ? lockSnapshot.leftSignerName
-      : settings.leftSignerName;
+      : settings?.leftSignerName || "";
 
   const effectiveLeftSignerPangkatNip =
     lockSnapshot?.isLocked && lockSnapshot.leftSignerPangkatNip
       ? lockSnapshot.leftSignerPangkatNip
-      : settings.leftSignerPangkatNip;
+      : settings?.leftSignerPangkatNip || "";
 
   const effectiveRightSignerTitle =
     lockSnapshot?.isLocked && lockSnapshot.rightSignerTitle
       ? lockSnapshot.rightSignerTitle
-      : settings.rightSignerTitle;
+      : settings?.rightSignerTitle || "KEPALA SEKSI INTELIJEN";
 
   const effectiveRightSignerName =
     lockSnapshot?.isLocked && lockSnapshot.rightSignerName
       ? lockSnapshot.rightSignerName
-      : settings.rightSignerName;
+      : settings?.rightSignerName || "";
 
   const effectiveRightSignerPangkatNip =
     lockSnapshot?.isLocked && lockSnapshot.rightSignerPangkatNip
       ? lockSnapshot.rightSignerPangkatNip
-      : settings.rightSignerPangkatNip;
+      : settings?.rightSignerPangkatNip || "";
 
   const effectiveSignatureAlignment =
     lockSnapshot?.isLocked && lockSnapshot.signatureAlignment
       ? lockSnapshot.signatureAlignment
-      : settings.signatureAlignment || "split";
+      : settings?.signatureAlignment || "split";
 
   const effectiveTempatDokumen =
     lockSnapshot?.isLocked && lockSnapshot.tempatDokumen
       ? lockSnapshot.tempatDokumen
-      : settings.tempatDokumen || "Tabanan";
+      : settings?.tempatDokumen || "Tabanan";
 
   // Tentukan tanggal penutupan register aktif
   const rawClosingDate =
@@ -79,7 +79,7 @@ export function generateRegisterPdf(options: GeneratePdfOptions): jsPDF {
     customClosingDate ||
     (typeof selectedMonth === "number"
       ? getClosingDateForPeriod(settings, tahunTakwim, selectedMonth)
-      : settings.tanggalDokumen || new Date().toISOString().split("T")[0]);
+      : settings?.tanggalDokumen || new Date().toISOString().split("T")[0]);
 
   const closingDateFormatted = formatDateIndonesian(rawClosingDate, false);
   const closingDateWithDay = formatDateIndonesian(rawClosingDate, true);

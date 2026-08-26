@@ -85,12 +85,12 @@ export function formatDateIndonesian(
  * Gets the configured or default closing date for a specific year and month
  */
 export function getClosingDateForPeriod(
-  settings: AppSettings,
-  year: number,
-  month1Indexed: number
+  settings?: AppSettings | null,
+  year: number = 2026,
+  month1Indexed: number = 1
 ): string {
   const monthKey = `${year}-${String(month1Indexed).padStart(2, "0")}`;
-  if (settings.closingDates && settings.closingDates[monthKey]) {
+  if (settings?.closingDates && settings.closingDates[monthKey]) {
     return settings.closingDates[monthKey];
   }
   return getDefaultClosingDate(year, month1Indexed);

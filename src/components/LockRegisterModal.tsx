@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AppSettings, RegisterDefinition, RegisterLock } from "../types.js";
+import { DEFAULT_SETTINGS } from "../lib/constants.js";
 import { Lock, Unlock, ShieldAlert, Check, X, Info } from "lucide-react";
 import { authFetch } from "../lib/api.js";
 
@@ -7,12 +8,17 @@ interface LockRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   register: RegisterDefinition;
-  settings: AppSettings;
+  settings?: AppSettings;
+  currentSettings?: AppSettings;
   periodKey: string;
   periodLabel: string;
-  activeClosingDate: string;
+  activeClosingDate?: string;
+  defaultClosingDate?: string;
+  selectedYear?: number;
+  selectedMonth?: number | "all";
   currentLock: RegisterLock | null;
-  onLockUpdated: () => void;
+  onLockUpdated?: () => void;
+  onLockSaved?: (updatedLock: RegisterLock | null) => void;
 }
 
 export const LockRegisterModal: React.FC<LockRegisterModalProps> = ({
@@ -20,12 +26,18 @@ export const LockRegisterModal: React.FC<LockRegisterModalProps> = ({
   onClose,
   register,
   settings,
+  currentSettings,
   periodKey,
   periodLabel,
   activeClosingDate,
+  defaultClosingDate,
   currentLock,
   onLockUpdated,
+  onLockSaved,
 }) => {
+  const safeSettings: AppSettings = currentSettings || settings || (DEFAULT_SETTINGS as AppSettings);
+  const safeClosingDate = defaultClosingDate || activeClosingDate || new Date().toISOString().split("T")[0];
+
   const [leftSignerTitle, setLeftSignerTitle] = useState("");
   const [leftSignerName, setLeftSignerName] = useState("");
   const [leftSignerPangkatNip, setLeftSignerPangkatNip] = useState("");
@@ -42,28 +54,28 @@ export const LockRegisterModal: React.FC<LockRegisterModalProps> = ({
     if (isOpen) {
       setError(null);
       if (currentLock && currentLock.isLocked) {
-        setLeftSignerTitle(currentLock.leftSignerTitle || settings.leftSignerTitle);
-        setLeftSignerName(currentLock.leftSignerName || settings.leftSignerName);
-        setLeftSignerPangkatNip(currentLock.leftSignerPangkatNip || settings.leftSignerPangkatNip);
-        setRightSignerTitle(currentLock.rightSignerTitle || settings.rightSignerTitle);
-        setRightSignerName(currentLock.rightSignerName || settings.rightSignerName);
-        setRightSignerPangkatNip(currentLock.rightSignerPangkatNip || settings.rightSignerPangkatNip);
-        setSignatureAlignment(currentLock.signatureAlignment || settings.signatureAlignment || "split");
-        setTempatDokumen(currentLock.tempatDokumen || settings.tempatDokumen || "Tabanan");
-        setClosingDate(currentLock.closingDate || activeClosingDate);
+        setLeftSignerTitle(currentLock.leftSignerTitle || safeSettings.leftSignerTitle || "");
+        setLeftSignerName(currentLock.leftSignerName || safeSettings.leftSignerName || "");
+        setLeftSignerPangkatNip(currentLock.leftSignerPangkatNip || safeSettings.leftSignerPangkatNip || "");
+        setRightSignerTitle(currentLock.rightSignerTitle || safeSettings.rightSignerTitle || "");
+        setRightSignerName(currentLock.rightSignerName || safeSettings.rightSignerName || "");
+        setRightSignerPangkatNip(currentLock.rightSignerPangkatNip || safeSettings.rightSignerPangkatNip || "");
+        setSignatureAlignment(currentLock.signatureAlignment || safeSettings.signatureAlignment || "split");
+        setTempatDokumen(currentLock.tempatDokumen || safeSettings.tempatDokumen || "Tabanan");
+        setClosingDate(currentLock.closingDate || safeClosingDate);
       } else {
-        setLeftSignerTitle(settings.leftSignerTitle);
-        setLeftSignerName(settings.leftSignerName);
-        setLeftSignerPangkatNip(settings.leftSignerPangkatNip);
-        setRightSignerTitle(settings.rightSignerTitle);
-        setRightSignerName(settings.rightSignerName);
-        setRightSignerPangkatNip(settings.rightSignerPangkatNip);
-        setSignatureAlignment(settings.signatureAlignment || "split");
-        setTempatDokumen(settings.tempatDokumen || "Tabanan");
-        setClosingDate(activeClosingDate);
+        setLeftSignerTitle(safeSettings.leftSignerTitle || "");
+        setLeftSignerName(safeSettings.leftSignerName || "");
+        setLeftSignerPangkatNip(safeSettings.leftSignerPangkatNip || "");
+        setRightSignerTitle(safeSettings.rightSignerTitle || "");
+        setRightSignerName(safeSettings.rightSignerName || "");
+        setRightSignerPangkatNip(safeSettings.rightSignerPangkatNip || "");
+        setSignatureAlignment(safeSettings.signatureAlignment || "split");
+        setTempatDokumen(safeSettings.tempatDokumen || "Tabanan");
+        setClosingDate(safeClosingDate);
       }
     }
-  }, [isOpen, currentLock, settings, activeClosingDate]);
+  }, [isOpen, currentLock, safeSettings, safeClosingDate]);
 
   if (!isOpen) return null;
 
@@ -93,12 +105,9 @@ export const LockRegisterModal: React.FC<LockRegisterModalProps> = ({
         }),
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Gagal mengunci register.");
-      }
-
-      onLockUpdated();
+      const savedLockData = await response.json();
+      onLockSaved?.(savedLockData);
+      onLockUpdated?.();
       onClose();
     } catch (err: any) {
       console.error("Lock register error:", err);
@@ -127,7 +136,8 @@ export const LockRegisterModal: React.FC<LockRegisterModalProps> = ({
         throw new Error(errData.error || "Gagal membuka kunci register.");
       }
 
-      onLockUpdated();
+      onLockSaved?.(null);
+      onLockUpdated?.();
       onClose();
     } catch (err: any) {
       console.error("Unlock register error:", err);
