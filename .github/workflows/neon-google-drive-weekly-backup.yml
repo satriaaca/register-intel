@@ -38,9 +38,9 @@ jobs:
 
           sudo curl --fail --location \
             --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            https://postgresql.org
 
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://postgresql.org $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
 
           sudo apt-get update
@@ -57,8 +57,11 @@ jobs:
           test -n "$GOOGLE_SERVICE_ACCOUNT_KEY"
           test -n "$GOOGLE_DRIVE_FOLDER_ID"
 
-          # Pastikan GOOGLE_SERVICE_ACCOUNT_KEY adalah JSON valid
-          echo "$GOOGLE_SERVICE_ACCOUNT_KEY" | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
+          # Decode Base64 and ensure it is valid JSON
+          echo "$GOOGLE_SERVICE_ACCOUNT_KEY" | node -e "
+            const decoded = Buffer.from(require('fs').readFileSync(0, 'utf8').trim(), 'base64').toString('utf8');
+            JSON.parse(decoded);
+          "
 
       - name: Test Neon database connection
         run: |
@@ -124,9 +127,13 @@ jobs:
           import path from "node:path";
           import { google } from "googleapis";
 
+          // Decode the Base64 key string directly in memory
+          const base64Key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+          const rawJsonString = Buffer.from(base64Key, 'base64').toString('utf8');
+
           const auth = new google.auth.GoogleAuth({
-            credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
-            scopes: ["https://www.googleapis.com/auth/drive"],
+            credentials: JSON.parse(rawJsonString),
+            scopes: ["https://googleapis.com"],
           });
 
           const drive = google.drive({
