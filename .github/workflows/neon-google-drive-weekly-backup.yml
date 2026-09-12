@@ -40,6 +40,7 @@ jobs:
             --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
             https://postgresql.org
 
+          # FIX: Menggunakan URL repositori apt.postgresql.org yang benar
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://postgresql.org $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
 
