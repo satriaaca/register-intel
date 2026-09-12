@@ -31,24 +31,36 @@ jobs:
         run: |
           set -euo pipefail
 
+          # 1. Clean up potential old file remnants to stop flakiness
+          sudo rm -f /etc/apt/sources.list.d/pgdg.list
+          sudo rm -f /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+
           sudo apt-get update
           sudo apt-get install -y ca-certificates curl lsb-release
 
-          sudo install -d /usr/share/postgresql-common/pgdg
+          # 2. Make sure directory safely exists
+          sudo mkdir -p /usr/share/postgresql-common/pgdg
 
+          # 3. Download the exact current authentication key
           sudo curl --fail --location \
             --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
             https://postgresql.org
 
-          # FIX: Menggunakan URL repositori apt.postgresql.org yang benar
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://postgresql.org $(lsb_release -cs)-pgdg main" \
+          # 4. Use the correct domain (apt.postgresql.org) for noble-pgdg 
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://postgresql.org noble-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
 
+          # 5. Clear package lists and explicitly pull fresh data
+          sudo apt-get clean
+          sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/pgdg.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" || true
           sudo apt-get update
+
+          # 6. Install the package
           sudo apt-get install -y postgresql-client-18
 
           /usr/lib/postgresql/18/bin/pg_dump --version
           /usr/lib/postgresql/18/bin/psql --version
+
 
       - name: Validate configuration
         run: |
