@@ -23,9 +23,7 @@ jobs:
 
     env:
       DATABASE_URL: ${{ secrets.NEON_BACKUP_DATABASE_URL }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+      GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
 
     steps:
@@ -56,10 +54,11 @@ jobs:
           set -euo pipefail
 
           test -n "$DATABASE_URL"
-          test -n "$GOOGLE_CLIENT_ID"
-          test -n "$GOOGLE_CLIENT_SECRET"
-          test -n "$GOOGLE_REFRESH_TOKEN"
+          test -n "$GOOGLE_SERVICE_ACCOUNT_KEY"
           test -n "$GOOGLE_DRIVE_FOLDER_ID"
+
+          # Pastikan GOOGLE_SERVICE_ACCOUNT_KEY adalah JSON valid
+          echo "$GOOGLE_SERVICE_ACCOUNT_KEY" | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
 
       - name: Test Neon database connection
         run: |
@@ -125,18 +124,14 @@ jobs:
           import path from "node:path";
           import { google } from "googleapis";
 
-          const oauth2Client = new google.auth.OAuth2(
-            process.env.GOOGLE_CLIENT_ID,
-            process.env.GOOGLE_CLIENT_SECRET,
-          );
-
-          oauth2Client.setCredentials({
-            refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+          const auth = new google.auth.GoogleAuth({
+            credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+            scopes: ["https://www.googleapis.com/auth/drive"],
           });
 
           const drive = google.drive({
             version: "v3",
-            auth: oauth2Client,
+            auth,
           });
 
           async function uploadFile(filePath) {
@@ -173,6 +168,7 @@ jobs:
             echo "- Format: PostgreSQL custom dump (pg_dump 18)"
             echo "- Kompresi: level 9"
             echo "- SHA-256 checksum: dibuat dan diunggah"
+            echo "- Autentikasi: Google Service Account"
             echo "- Waktu: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           } >> "$GITHUB_STEP_SUMMARY"
 
