@@ -112,7 +112,7 @@ jobs:
 
           npm init -y
           npm install --no-save googleapis@latest
-
+      
       - name: Upload backup to Google Drive
         env:
           BACKUP_FILE: ${{ steps.backup.outputs.backup_file }}
@@ -121,6 +121,7 @@ jobs:
           set -euo pipefail
 
           UPLOADER_DIR="$RUNNER_TEMP/google-drive-uploader"
+          mkdir -p "$UPLOADER_DIR"
           SCRIPT_PATH="$UPLOADER_DIR/upload-to-google-drive.mjs"
 
           cat > "$SCRIPT_PATH" <<'NODE'
@@ -128,13 +129,12 @@ jobs:
           import path from "node:path";
           import { google } from "googleapis";
 
-          // Decode the Base64 key string directly in memory
           const base64Key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
           const rawJsonString = Buffer.from(base64Key, 'base64').toString('utf8');
 
           const auth = new google.auth.GoogleAuth({
             credentials: JSON.parse(rawJsonString),
-            scopes: ["https://googleapis.com"],
+            scopes: ["https://www.googleapis.com/auth/drive.file"],
           });
 
           const drive = google.drive({
@@ -153,11 +153,10 @@ jobs:
                 body: fs.createReadStream(filePath),
               },
               fields: "id,name,size,createdTime,webViewLink",
+              supportsAllDrives: true,
             });
 
-            console.log(
-              `Uploaded: ${response.data.name} (${response.data.id})`,
-            );
+            console.log(`Uploaded: ${response.data.name} (${response.data.id})`);
           }
 
           await uploadFile(process.env.BACKUP_FILE);
